@@ -1,0 +1,7 @@
+﻿services:
+  pluck.api:
+    image: pluck.api
+    build:
+      context: .
+      dockerfile: src/Pluck.Api/Dockerfile
+
