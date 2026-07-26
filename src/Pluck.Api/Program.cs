@@ -1,17 +1,17 @@
 using Dapper;
 using Microsoft.Data.Sqlite;
 using Pluck.Api.Data;
+using Pluck.Api.Middlewares;
+using Pluck.Api.Repositories;
 using Pluck.Api.Security;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
-
 builder.Services.AddSingleton<DbConnectionFactory>();
-var app = builder.Build();
+builder.Services.AddScoped<UserRepository>();
 
+var app = builder.Build();
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
@@ -19,6 +19,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+// custom auth middleware
+app.UseMiddleware<ApiKeyAuthMiddleware>();
 
 // Set up the database and seed admin user if necessary
 using (var scope = app.Services.CreateScope())
