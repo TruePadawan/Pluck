@@ -5,6 +5,7 @@ using Pluck.Api.Endpoints;
 using Pluck.Api.Middlewares;
 using Pluck.Api.Repositories;
 using Pluck.Api.Security;
+using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -21,6 +22,7 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+    app.MapScalarApiReference();
 }
 
 app.UseHttpsRedirection();
