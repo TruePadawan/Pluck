@@ -1,0 +1,81 @@
+using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.Net.Http.Headers;
+using Pluck.Api.Repositories;
+using Pluck.Api.Utils;
+using Pluck.Shared.Dtos;
+using Pluck.Shared.Models;
+using File = System.IO.File;
+using MediaTypeHeaderValue = System.Net.Http.Headers.MediaTypeHeaderValue;
+
+namespace Pluck.Api.Endpoints;
+
+public static class UploadEndpoints
+{
+    public static void MapUploadEndpoints(this WebApplication app)
+    {
+        app.MapPost("/api/upload",
+            async Task<IResult> (HttpContext context, IConfiguration config, FileRepository fileRepository) =>
+            {
+                var request = context.Request;
+
+                // Verify the request is a multipart request
+                if (!MultipartRequestHelper.IsMultipartRequest(request.ContentType))
+                {
+                    return TypedResults.BadRequest("Invalid content type, Expected a multipart request");
+                }
+
+                var boundary = MultipartRequestHelper.GetBoundary(MediaTypeHeaderValue.Parse(request.ContentType));
+                var reader = new MultipartReader(boundary, request.Body);
+                var fileSection = await reader.ReadNextSectionAsync();
+
+                // Validate section headers and process the file segment
+                if (fileSection != null &&
+                    ContentDispositionHeaderValue.TryParse(fileSection.ContentDisposition, out var contentDisposition))
+                {
+                    if (contentDisposition.DispositionType.Equals("form-data") &&
+                        !string.IsNullOrEmpty(contentDisposition.FileName.Value))
+                    {
+                        var originalFileName = Path.GetFileName(contentDisposition.FileName.Value);
+                        var diskFileName = Utilities.GenerateId(8) + ".dat";
+                        var uploadDirectory = config.GetValue<string>("Pluck:UploadDirectory");
+                        if (string.IsNullOrEmpty(uploadDirectory))
+                        {
+                            return Results.InternalServerError("Upload directory not configured");
+                        }
+
+                        Directory.CreateDirectory(uploadDirectory);
+                        var savePath = Path.Combine(uploadDirectory, diskFileName);
+                        // stream file to disk
+                        await using (var destinationStream = File.Create(savePath))
+                        {
+                            await fileSection.Body.CopyToAsync(destinationStream);
+                        }
+
+                        double ttl = 24;
+                        int? maxDownloads = null;
+                        if (context.Request.Headers.TryGetValue("X-PLUCK-TTL", out var ttlHeader))
+                        {
+                            ttl = double.Parse(ttlHeader.ToString());
+                        }
+
+                        if (context.Request.Headers.TryGetValue("X-PLUCK-MAX-DOWNLOADS", out var maxDownloadsHeader))
+                        {
+                            maxDownloads = int.Parse(maxDownloadsHeader.ToString());
+                        }
+
+                        var user = context.Items["User"] as User;
+                        if (user == null)
+                        {
+                            return Results.Unauthorized();
+                        }
+
+                        var fileDto = new FileDto(user.Id, originalFileName, diskFileName, ttl, maxDownloads);
+                        var file = await fileRepository.CreateFileEntry(fileDto);
+                        return TypedResults.Created(uploadDirectory + "/" + file.DiskFileName, file);
+                    }
+                }
+
+                return TypedResults.BadRequest("No valid file content was provided");
+            }).Accepts<IFormFile>("multipart/form-data");
+    }
+}

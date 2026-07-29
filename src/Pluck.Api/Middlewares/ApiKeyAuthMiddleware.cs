@@ -7,14 +7,7 @@ public class ApiKeyAuthMiddleware(RequestDelegate next)
 {
     public async Task InvokeAsync(HttpContext context, UserRepository userRepository)
     {
-        // Skip auth for non-api paths
-        if (!context.Request.Path.StartsWithSegments("/api"))
-        {
-            await next(context);
-            return;
-        }
-
-        if (!context.Request.Headers.TryGetValue("X-Pluck-Api-Key", out var apiKey))
+        if (!context.Request.Headers.TryGetValue("X-PLUCK-API-KEY", out var apiKey))
         {
             context.Response.StatusCode = 401;
             await context.Response.WriteAsJsonAsync(new { Error = "API Key missing" });
