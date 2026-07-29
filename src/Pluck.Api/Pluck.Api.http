@@ -1,6 +1,0 @@
-@Pluck.Api_HostAddress = http://localhost:5178
-
-GET {{Pluck.Api_HostAddress}}/
-Accept: application/json
-
-###
