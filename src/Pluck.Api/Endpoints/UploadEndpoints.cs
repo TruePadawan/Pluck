@@ -69,9 +69,11 @@ public static class UploadEndpoints
                             return Results.Unauthorized();
                         }
 
-                        var fileDto = new FileDto(user.Id, originalFileName, diskFileName, ttl, maxDownloads);
+                        var fileDto = new CreateFileDto(user.Id, diskFileName, originalFileName, ttl, maxDownloads);
                         var file = await fileRepository.CreateFileEntry(fileDto);
-                        return TypedResults.Created(uploadDirectory + "/" + file.DiskFileName, file);
+                        var result = new FileResponseDto(file.Token, file.OriginalFileName, file.DownloadsLeft,
+                            file.ExpiresAt);
+                        return TypedResults.Created($"{uploadDirectory}/{file.Token}", result);
                     }
                 }
 

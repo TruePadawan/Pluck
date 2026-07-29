@@ -1,7 +1,7 @@
 namespace Pluck.Shared.Dtos;
 
-public record FileDto(
-    int OwnerId,
+public record CreateFileDto(
+    Guid OwnerId,
     string DiskFileName,
     string OriginalFileName,
     double Ttl,
