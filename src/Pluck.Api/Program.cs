@@ -57,4 +57,5 @@ using (var scope = app.Services.CreateScope())
 
 app.MapGet("/", () => "Pluck");
 app.MapUploadEndpoints();
+app.MapDownloadEndpoints();
 app.Run();
