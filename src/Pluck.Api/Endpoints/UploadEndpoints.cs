@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.Extensions.Options;
 using Microsoft.Net.Http.Headers;
 using Pluck.Api.Repositories;
+using Pluck.Api.Security;
 using Pluck.Api.Utils;
 using Pluck.Shared.Dtos;
 using Pluck.Shared.Models;
@@ -14,9 +16,11 @@ public static class UploadEndpoints
     public static void MapUploadEndpoints(this WebApplication app)
     {
         app.MapPost("/api/upload",
-            async Task<IResult> (HttpContext context, IConfiguration config, FileRepository fileRepository) =>
+            async Task<IResult> (HttpContext context, IOptions<PluckApiOptions> apiOptions,
+                FileRepository fileRepository) =>
             {
                 var request = context.Request;
+                var config = apiOptions.Value;
 
                 // Verify the request is a multipart request
                 if (!MultipartRequestHelper.IsMultipartRequest(request.ContentType))
@@ -24,7 +28,7 @@ public static class UploadEndpoints
                     return TypedResults.BadRequest("Invalid content type, Expected a multipart request");
                 }
 
-                var boundary = MultipartRequestHelper.GetBoundary(MediaTypeHeaderValue.Parse(request.ContentType));
+                var boundary = MultipartRequestHelper.GetBoundary(MediaTypeHeaderValue.Parse(request.ContentType!));
                 var reader = new MultipartReader(boundary, request.Body);
                 var fileSection = await reader.ReadNextSectionAsync();
 
@@ -37,7 +41,7 @@ public static class UploadEndpoints
                     {
                         var originalFileName = Path.GetFileName(contentDisposition.FileName.Value);
                         var diskFileName = Utilities.GenerateId(8) + ".dat";
-                        var uploadDirectory = config.GetValue<string>("Pluck:UploadDirectory");
+                        var uploadDirectory = config.UploadDirectory;
                         if (string.IsNullOrEmpty(uploadDirectory))
                         {
                             return Results.InternalServerError("Upload directory not configured");
@@ -63,14 +67,13 @@ public static class UploadEndpoints
                             maxDownloads = int.Parse(maxDownloadsHeader.ToString());
                         }
 
-                        var user = context.Items["User"] as User;
-                        if (user == null)
+                        if (context.Items["User"] is not User user)
                         {
                             return Results.Unauthorized();
                         }
 
                         var fileDto = new CreateFileDto(user.Id, diskFileName, originalFileName, ttl, maxDownloads);
-                        var file = await fileRepository.CreateFileEntry(fileDto);
+                        var file = await fileRepository.CreateFile(fileDto);
                         var result = new FileResponseDto(file.Token, file.OriginalFileName, file.DownloadsLeft,
                             file.ExpiresAt);
                         return TypedResults.Created($"{uploadDirectory}/{file.Token}", result);

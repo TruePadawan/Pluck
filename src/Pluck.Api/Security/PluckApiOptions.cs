@@ -7,4 +7,5 @@ public class PluckApiOptions
     public const string SectionName = "PluckApi";
 
     [Required] public string AdminKey { get; set; } = string.Empty;
+    [Required] public string UploadDirectory { get; set; } = string.Empty;
 }
