@@ -13,6 +13,7 @@ public class FileRepository(AppDbContext db)
         var token = Utilities.GenerateId(6);
         var fileExpiryDate = DateTimeOffset.UtcNow.AddHours(fileDto.Ttl);
         var fileEntry = File.Create(token, fileDto.OwnerId, fileDto.DiskFileName, fileDto.OriginalFileName,
+            fileDto.ContentType,
             fileDto.MaxDownloads, fileExpiryDate);
         db.Files.Add(fileEntry);
         await db.SaveChangesAsync();

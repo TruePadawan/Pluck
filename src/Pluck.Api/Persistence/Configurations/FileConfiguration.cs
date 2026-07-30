@@ -14,6 +14,7 @@ public class FileConfiguration : IEntityTypeConfiguration<File>
         builder.Property(f => f.Token).IsRequired().HasMaxLength(10);
         builder.Property(f => f.DiskFileName).IsRequired().HasMaxLength(200);
         builder.Property(f => f.OriginalFileName).IsRequired().HasMaxLength(200);
+        builder.Property(f => f.ContentType).IsRequired().HasMaxLength(100);
         builder.Property(m => m.CreatedAt)
             .IsRequired()
             .ValueGeneratedOnAdd();

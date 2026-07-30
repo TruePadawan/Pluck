@@ -72,7 +72,8 @@ public static class UploadEndpoints
                             return Results.Unauthorized();
                         }
 
-                        var fileDto = new CreateFileDto(user.Id, diskFileName, originalFileName, ttl, maxDownloads);
+                        var fileDto = new CreateFileDto(user.Id, diskFileName, originalFileName, request.ContentType!,
+                            ttl, maxDownloads);
                         var file = await fileRepository.CreateFile(fileDto);
                         var result = new FileResponseDto(file.Token, file.OriginalFileName, file.DownloadsLeft,
                             file.ExpiresAt);
