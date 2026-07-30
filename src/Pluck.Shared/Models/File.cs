@@ -53,6 +53,23 @@ public sealed class File : EntityBase
         UpdateLastModified();
     }
 
+    public void DecrementDownloadsLeft()
+    {
+        if (DownloadsLeft > 0)
+        {
+            DownloadsLeft--;
+            UpdateLastModified();
+        }
+    }
+
+    public bool IsDownloadable(string uploadDirectory)
+    {
+        if (DownloadsLeft <= 0 || ExpiresAt > DateTimeOffset.Now) return false;
+        // Check that the actual file exists on disk
+        var filePath = Path.Combine(uploadDirectory, DiskFileName);
+        return System.IO.File.Exists(filePath);
+    }
+
     private static void ValidateInputs(string token, Guid ownerId, string diskFileName, string originalFileName,
         int? downloadsLeft, DateTimeOffset expiresAt)
     {
