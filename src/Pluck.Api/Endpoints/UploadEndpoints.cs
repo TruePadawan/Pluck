@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Options;
 using Microsoft.Net.Http.Headers;
@@ -23,11 +24,24 @@ public static class UploadEndpoints
                 UnauthorizedHttpResult,
                 Created<CreateFileResponseDto>>> (
                 HttpContext context, IOptions<PluckApiOptions> apiOptions,
-                FileRepository fileRepository) =>
+                FileRepository fileRepository,
+                [FromHeader(Name = "X-PLUCK-TTL")] double fileTtlInHours = 24,
+                [FromHeader(Name = "X-PLUCK-MAX-DOWNLOADS")]
+                int? fileMaxDownloads = null) =>
             {
-                var request = context.Request;
-                var config = apiOptions.Value;
+                // Verify that ttl is positive and maxDownloads is null or positive
+                if (fileTtlInHours <= 0)
+                {
+                    return TypedResults.BadRequest(new ErrorResponseDto("TTL must be greater than 0"));
+                }
 
+                if (fileMaxDownloads <= 0)
+                {
+                    return TypedResults.BadRequest(
+                        new ErrorResponseDto("Max downloads if set must be greater than 0"));
+                }
+
+                var request = context.Request;
                 // Verify the request is a multipart request
                 if (!MultipartRequestHelper.IsMultipartRequest(request.ContentType))
                 {
@@ -48,7 +62,7 @@ public static class UploadEndpoints
                     {
                         var originalFileName = Path.GetFileName(contentDisposition.FileName.Value);
                         var diskFileName = Utilities.GenerateId(8) + ".dat";
-                        var uploadDirectory = config.UploadDirectory;
+                        var uploadDirectory = apiOptions.Value.UploadDirectory;
                         if (string.IsNullOrEmpty(uploadDirectory))
                         {
                             return TypedResults.InternalServerError(
@@ -63,25 +77,13 @@ public static class UploadEndpoints
                             await fileSection.Body.CopyToAsync(destinationStream);
                         }
 
-                        double ttl = 24;
-                        int? maxDownloads = null;
-                        if (context.Request.Headers.TryGetValue("X-PLUCK-TTL", out var ttlHeader))
-                        {
-                            ttl = double.Parse(ttlHeader.ToString());
-                        }
-
-                        if (context.Request.Headers.TryGetValue("X-PLUCK-MAX-DOWNLOADS", out var maxDownloadsHeader))
-                        {
-                            maxDownloads = int.Parse(maxDownloadsHeader.ToString());
-                        }
-
                         if (context.Items["User"] is not User user)
                         {
                             return TypedResults.Unauthorized();
                         }
 
                         var fileDto = new CreateFileDto(user.Id, diskFileName, originalFileName, request.ContentType!,
-                            ttl, maxDownloads);
+                            fileTtlInHours, fileMaxDownloads);
                         var file = await fileRepository.CreateFile(fileDto);
                         var result = new CreateFileResponseDto(file.Token, file.OriginalFileName, file.DownloadsLeft,
                             file.ExpiresAt);
