@@ -24,4 +24,14 @@ public class UserRepository(AppDbContext db)
     {
         return await db.Users.AnyAsync(u => u.Name == name);
     }
+
+    public async Task DeleteUserByName(string name)
+    {
+        var user = await db.Users.SingleOrDefaultAsync(u => u.Name == name);
+        if (user is not null)
+        {
+            db.Users.Remove(user);
+            await db.SaveChangesAsync();
+        }
+    }
 }

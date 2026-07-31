@@ -33,5 +33,28 @@ public static class AdminEndpoints
                 await userRepository.CreateUser(new CreateUserDto(name, apiKeyHash, "User"));
                 return TypedResults.Ok(new CreateUserResponseDto(newApiKey));
             });
+
+        adminRouteGroup.MapDelete("/users/{name}",
+            async Task<Results<UnauthorizedHttpResult,
+                NoContent,
+                Conflict<ErrorResponseDto>,
+                NotFound<ErrorResponseDto>>>
+            (string name,
+                HttpContext context, UserRepository userRepository) =>
+            {
+                if (context.Items["User"] is not User { Role: "Admin" } adminUser)
+                {
+                    return TypedResults.Unauthorized();
+                }
+
+                // Prevent deletion of the admin user
+                if (name == adminUser.Name)
+                {
+                    return TypedResults.Conflict(new ErrorResponseDto("Cannot delete admin user"));
+                }
+
+                await userRepository.DeleteUserByName(name);
+                return TypedResults.NoContent();
+            });
     }
 }
