@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Pluck.Api.Persistence;
 using Pluck.Api.Utils;
-using Pluck.Shared.Dtos;
+using Pluck.Shared.Dtos.Files;
 using File = Pluck.Shared.Models.File;
 
 namespace Pluck.Api.Repositories;

@@ -6,6 +6,7 @@ using Pluck.Api.Repositories;
 using Pluck.Api.Security;
 using Pluck.Api.Utils;
 using Pluck.Shared.Dtos;
+using Pluck.Shared.Dtos.Files;
 using Pluck.Shared.Models;
 using File = System.IO.File;
 using MediaTypeHeaderValue = System.Net.Http.Headers.MediaTypeHeaderValue;
@@ -20,7 +21,7 @@ public static class UploadEndpoints
             async Task<Results<BadRequest<ErrorResponseDto>,
                 InternalServerError<ErrorResponseDto>,
                 UnauthorizedHttpResult,
-                Created<FileResponseDto>>> (
+                Created<CreateFileResponseDto>>> (
                 HttpContext context, IOptions<PluckApiOptions> apiOptions,
                 FileRepository fileRepository) =>
             {
@@ -82,7 +83,7 @@ public static class UploadEndpoints
                         var fileDto = new CreateFileDto(user.Id, diskFileName, originalFileName, request.ContentType!,
                             ttl, maxDownloads);
                         var file = await fileRepository.CreateFile(fileDto);
-                        var result = new FileResponseDto(file.Token, file.OriginalFileName, file.DownloadsLeft,
+                        var result = new CreateFileResponseDto(file.Token, file.OriginalFileName, file.DownloadsLeft,
                             file.ExpiresAt);
                         return TypedResults.Created($"{uploadDirectory}/{file.Token}", result);
                     }

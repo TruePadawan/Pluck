@@ -1,4 +1,4 @@
-namespace Pluck.Shared.Dtos;
+namespace Pluck.Shared.Dtos.Files;
 
 public record CreateFileDto(
     Guid OwnerId,
