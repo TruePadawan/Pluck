@@ -4,6 +4,7 @@ using Pluck.Api.Middlewares;
 using Pluck.Api.Persistence;
 using Pluck.Api.Repositories;
 using Pluck.Api.Security;
+using Pluck.Api.Workers;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -11,9 +12,15 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddOpenApi();
 builder.Services.AddScoped<UserRepository>();
 builder.Services.AddScoped<FileRepository>();
+builder.Services.AddHostedService<FileCleanupBackgroundService>();
 builder.WebHost.ConfigureKestrel(options =>
 {
     options.Limits.MaxRequestBodySize = 10L * 1024 * 1024 * 1024; // 10GB
+});
+// An exception thrown in the background service will not cause the host to exit
+builder.Services.Configure<HostOptions>(options =>
+{
+    options.BackgroundServiceExceptionBehavior = BackgroundServiceExceptionBehavior.Ignore;
 });
 builder.Services.AddDbContext<AppDbContext>(options =>
 {
