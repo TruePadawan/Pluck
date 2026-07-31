@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Options;
 using Microsoft.Net.Http.Headers;
@@ -16,7 +17,11 @@ public static class UploadEndpoints
     public static void MapUploadEndpoints(this WebApplication app)
     {
         app.MapPost("/api/upload",
-            async Task<IResult> (HttpContext context, IOptions<PluckApiOptions> apiOptions,
+            async Task<Results<BadRequest<ErrorResponseDto>,
+                InternalServerError<ErrorResponseDto>,
+                UnauthorizedHttpResult,
+                Created<FileResponseDto>>> (
+                HttpContext context, IOptions<PluckApiOptions> apiOptions,
                 FileRepository fileRepository) =>
             {
                 var request = context.Request;
@@ -25,7 +30,8 @@ public static class UploadEndpoints
                 // Verify the request is a multipart request
                 if (!MultipartRequestHelper.IsMultipartRequest(request.ContentType))
                 {
-                    return TypedResults.BadRequest("Invalid content type, Expected a multipart request");
+                    return TypedResults.BadRequest(
+                        new ErrorResponseDto("Invalid content type, Expected a multipart request"));
                 }
 
                 var boundary = MultipartRequestHelper.GetBoundary(MediaTypeHeaderValue.Parse(request.ContentType!));
@@ -44,7 +50,8 @@ public static class UploadEndpoints
                         var uploadDirectory = config.UploadDirectory;
                         if (string.IsNullOrEmpty(uploadDirectory))
                         {
-                            return Results.InternalServerError("Upload directory not configured");
+                            return TypedResults.InternalServerError(
+                                new ErrorResponseDto("Upload directory not configured"));
                         }
 
                         Directory.CreateDirectory(uploadDirectory);
@@ -69,7 +76,7 @@ public static class UploadEndpoints
 
                         if (context.Items["User"] is not User user)
                         {
-                            return Results.Unauthorized();
+                            return TypedResults.Unauthorized();
                         }
 
                         var fileDto = new CreateFileDto(user.Id, diskFileName, originalFileName, request.ContentType!,
@@ -81,7 +88,7 @@ public static class UploadEndpoints
                     }
                 }
 
-                return TypedResults.BadRequest("No valid file content was provided");
+                return TypedResults.BadRequest(new ErrorResponseDto("No valid file content was provided"));
             }).Accepts<IFormFile>("multipart/form-data");
     }
 }
