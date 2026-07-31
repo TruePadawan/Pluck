@@ -57,4 +57,5 @@ using (var scope = app.Services.CreateScope())
 
 app.MapUploadEndpoints();
 app.MapDownloadEndpoints();
+app.MapAdminEndpoints();
 app.Run();
