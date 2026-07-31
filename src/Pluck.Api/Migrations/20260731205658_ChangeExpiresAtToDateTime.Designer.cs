@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Pluck.Api.Persistence;
 
@@ -10,9 +11,11 @@ using Pluck.Api.Persistence;
 namespace Pluck.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260731205658_ChangeExpiresAtToDateTime")]
+    partial class ChangeExpiresAtToDateTime
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.10");
@@ -28,7 +31,7 @@ namespace Pluck.Api.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTime>("CreatedAt")
+                    b.Property<DateTimeOffset>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
@@ -43,7 +46,7 @@ namespace Pluck.Api.Migrations
                     b.Property<DateTime>("ExpiresAt")
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTime>("LastModifiedAt")
+                    b.Property<DateTimeOffset>("LastModifiedAt")
                         .ValueGeneratedOnUpdate()
                         .HasColumnType("TEXT");
 
@@ -81,11 +84,11 @@ namespace Pluck.Api.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTime>("CreatedAt")
+                    b.Property<DateTimeOffset>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTime>("LastModifiedAt")
+                    b.Property<DateTimeOffset>("LastModifiedAt")
                         .ValueGeneratedOnUpdate()
                         .HasColumnType("TEXT");
 

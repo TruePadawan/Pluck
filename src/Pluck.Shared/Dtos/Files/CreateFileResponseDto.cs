@@ -4,5 +4,5 @@ public record CreateFileResponseDto(
     string Token,
     string OriginalFileName,
     int? DownloadsLeft,
-    DateTimeOffset ExpiresAt
+    DateTime ExpiresAt
 );

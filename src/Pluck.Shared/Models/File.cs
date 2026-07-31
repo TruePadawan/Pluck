@@ -9,7 +9,7 @@ public sealed class File : EntityBase
     public string OriginalFileName { get; private set; }
     public string ContentType { get; private set; }
     public int? DownloadsLeft { get; private set; }
-    public DateTimeOffset ExpiresAt { get; private set; }
+    public DateTime ExpiresAt { get; private set; }
 
     // For ORM frameworks
     private File()
@@ -20,12 +20,12 @@ public sealed class File : EntityBase
         OriginalFileName = string.Empty;
         ContentType = string.Empty;
         DownloadsLeft = null;
-        ExpiresAt = DateTimeOffset.Now;
+        ExpiresAt = DateTime.UtcNow;
     }
 
     private File(string token, Guid ownerId, string diskFileName, string originalFileName, string contentType,
         int? downloadsLeft,
-        DateTimeOffset expiresAt)
+        DateTime expiresAt)
     {
         Token = token;
         OwnerId = ownerId;
@@ -38,7 +38,7 @@ public sealed class File : EntityBase
 
     public static File Create(string token, Guid ownerId, string diskFileName, string originalFileName,
         string contentType,
-        int? downloadsLeft, DateTimeOffset expiresAt)
+        int? downloadsLeft, DateTime expiresAt)
     {
         ValidateInputs(token, ownerId, diskFileName, originalFileName, contentType, downloadsLeft, expiresAt);
         return new File(token, ownerId, diskFileName, originalFileName, contentType, downloadsLeft, expiresAt);
@@ -46,7 +46,7 @@ public sealed class File : EntityBase
 
     public void Update(string token, Guid ownerId, string diskFileName, string originalFileName, string contentType,
         int? downloadsLeft,
-        DateTimeOffset expiresAt)
+        DateTime expiresAt)
     {
         ValidateInputs(token, ownerId, diskFileName, originalFileName, contentType, downloadsLeft, expiresAt);
         Token = token;
@@ -71,7 +71,7 @@ public sealed class File : EntityBase
 
     public bool IsDownloadable(string uploadDirectory)
     {
-        if (DownloadsLeft <= 0 || ExpiresAt < DateTimeOffset.Now) return false;
+        if (DownloadsLeft <= 0 || ExpiresAt < DateTime.UtcNow) return false;
         // Check that the actual file exists on disk
         var filePath = Path.Combine(uploadDirectory, DiskFileName);
         return System.IO.File.Exists(filePath);
@@ -79,7 +79,7 @@ public sealed class File : EntityBase
 
     private static void ValidateInputs(string token, Guid ownerId, string diskFileName, string originalFileName,
         string contentType,
-        int? downloadsLeft, DateTimeOffset expiresAt)
+        int? downloadsLeft, DateTime expiresAt)
     {
         if (string.IsNullOrWhiteSpace(token))
             throw new ArgumentException("Token cannot be null or empty", nameof(token));
@@ -93,7 +93,7 @@ public sealed class File : EntityBase
             throw new ArgumentException("Content type cannot be null or empty", nameof(contentType));
         if (downloadsLeft < 0)
             throw new ArgumentException("The number of downloads left cannot be negative", nameof(downloadsLeft));
-        if (expiresAt < DateTimeOffset.Now)
+        if (expiresAt < DateTime.UtcNow)
             throw new ArgumentException("File expiration date cannot be in the past");
     }
 };
