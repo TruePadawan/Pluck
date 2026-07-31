@@ -55,7 +55,6 @@ using (var scope = app.Services.CreateScope())
     await db.Database.MigrateAsync();
 }
 
-app.MapGet("/", () => "Pluck");
 app.MapUploadEndpoints();
 app.MapDownloadEndpoints();
 app.Run();
