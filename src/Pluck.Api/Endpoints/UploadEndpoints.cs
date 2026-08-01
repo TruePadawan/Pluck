@@ -90,7 +90,7 @@ public static class UploadEndpoints
 
                         // return data about the file and its download link
                         var serverBaseUrl = $"{request.Scheme}://{request.Host}";
-                        var fileDownloadUrl = $"{serverBaseUrl}/api/download/{file.Token}";
+                        var fileDownloadUrl = $"{serverBaseUrl}/f/{file.Token}";
                         var result = new CreateFileResponseDto(file.Token, file.OriginalFileName, file.DownloadsLeft,
                             file.ExpiresAt, fileDownloadUrl);
                         return TypedResults.Created($"{uploadDirectory}/{file.Token}", result);
