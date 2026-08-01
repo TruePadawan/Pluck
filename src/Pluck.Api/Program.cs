@@ -62,6 +62,7 @@ using (var scope = app.Services.CreateScope())
     await db.Database.MigrateAsync();
 }
 
+app.MapMiscEndpoints();
 app.MapUploadEndpoints();
 app.MapDownloadEndpoints();
 app.MapAdminEndpoints();
