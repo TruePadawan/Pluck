@@ -29,6 +29,11 @@ public static class UploadEndpoints
                 [FromHeader(Name = "X-PLUCK-MAX-DOWNLOADS")]
                 int? fileMaxDownloads = null) =>
             {
+                if (context.Items["User"] is not User user)
+                {
+                    return TypedResults.Unauthorized();
+                }
+
                 // Verify that ttl is positive and maxDownloads is null or positive
                 if (fileTtlInHours <= 0)
                 {
@@ -77,16 +82,17 @@ public static class UploadEndpoints
                             await fileSection.Body.CopyToAsync(destinationStream);
                         }
 
-                        if (context.Items["User"] is not User user)
-                        {
-                            return TypedResults.Unauthorized();
-                        }
-
-                        var fileDto = new CreateFileDto(user.Id, diskFileName, originalFileName, request.ContentType!,
+                        var fileContentType = fileSection.ContentType ?? "application/octet-stream";
+                        var fileDto = new CreateFileDto(user.Id, diskFileName, originalFileName, fileContentType,
                             fileTtlInHours, fileMaxDownloads);
+                        // Save the file entry in the database
                         var file = await fileRepository.CreateFile(fileDto);
+
+                        // return data about the file and its download link
+                        var serverBaseUrl = $"{request.Scheme}://{request.Host}";
+                        var fileDownloadUrl = $"{serverBaseUrl}/api/download/{file.Token}";
                         var result = new CreateFileResponseDto(file.Token, file.OriginalFileName, file.DownloadsLeft,
-                            file.ExpiresAt);
+                            file.ExpiresAt, fileDownloadUrl);
                         return TypedResults.Created($"{uploadDirectory}/{file.Token}", result);
                     }
                 }
