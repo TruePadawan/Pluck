@@ -1,7 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
-using System.Text.Json;
 using DotMake.CommandLine;
+using Pluck.Cli.Config;
 using Pluck.Shared.Dtos;
 
 namespace Pluck.Cli.Commands;
@@ -41,26 +41,16 @@ public class ConfigCliCommand
                 throw new Exception("Failed to get user info");
             }
 
-            var config = new PluckConfig { ServerUrl = ServerUrl, ApiKey = ApiKey };
-            var jsonString = JsonSerializer.Serialize(config);
-
-            var configDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".pluck");
-            Directory.CreateDirectory(configDir);
-            var configPath = Path.Combine(configDir, "config.json");
-            await File.WriteAllTextAsync(configPath, jsonString);
-
+            PluckConfigManager.Save(new PluckConfig(ServerUrl, ApiKey));
             Console.WriteLine($"Welcome, {user.Name}");
-            Console.WriteLine($"Pluck config file created at {configPath}");
         }
         catch (Exception e)
         {
             Console.WriteLine($"Failed to configure Pluck CLI: {e.Message}");
         }
+        finally
+        {
+            PluckHttpClient.Dispose();
+        }
     }
-}
-
-public class PluckConfig
-{
-    public required string ServerUrl { get; set; }
-    public required string ApiKey { get; set; }
 }
