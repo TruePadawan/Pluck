@@ -31,14 +31,13 @@ public class ConfigCliCommand
             var response = await PluckHttpClient.GetAsync("/api");
             if (response.StatusCode == HttpStatusCode.Unauthorized)
             {
-                Console.WriteLine("Invalid API key. Ensure the API key and server is correct");
-                return;
+                throw new Exception("Invalid API key. Ensure the API key and server is correct");
             }
 
             var user = await response.Content.ReadFromJsonAsync<PingUserResponseDto>();
             if (user is null)
             {
-                throw new Exception("Failed to get user info");
+                throw new Exception("Unable to parse user info");
             }
 
             PluckConfigManager.Save(new PluckConfig(ServerUrl, ApiKey));

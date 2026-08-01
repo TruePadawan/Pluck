@@ -40,7 +40,7 @@ public class CreateUserCliCommand
                 }
 
                 var errorResponse = await response.Content.ReadFromJsonAsync<ErrorResponseDto>();
-                Console.WriteLine($"Failed to create user: {errorResponse?.Error}");
+                throw new Exception(errorResponse?.Error);
             }
 
             var successResponse = await response.Content.ReadFromJsonAsync<CreateUserResponseDto>();
