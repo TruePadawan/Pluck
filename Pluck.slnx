@@ -3,5 +3,6 @@
     <File Path="compose.yaml" />
   </Folder>
   <Project Path="src/Pluck.Api/Pluck.Api.csproj" />
+  <Project Path="src/Pluck.Cli/Pluck.Cli.csproj" />
   <Project Path="src/Pluck.Shared/Pluck.Shared.csproj" />
 </Solution>
