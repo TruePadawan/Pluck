@@ -49,8 +49,17 @@ public class CreateUserCliCommand
                 throw new Exception("Unable to parse API Key");
             }
 
-            await ClipboardService.SetTextAsync(successResponse.ApiKey);
-            Console.WriteLine($"User '{Name}' created successfully. The API Key has been copied to your clipboard.");
+            try
+            {
+                await ClipboardService.SetTextAsync(successResponse.ApiKey);
+                Console.WriteLine("The API Key has been copied to your clipboard.");
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine($"Failed to copy API Key to clipboard: {e.Message}");
+            }
+
+            Console.WriteLine($"User '{Name}' created successfully.");
             Console.WriteLine($"API Key: {successResponse.ApiKey}");
         }
         catch (Exception e)
