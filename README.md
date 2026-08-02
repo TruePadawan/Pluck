@@ -1,6 +1,31 @@
 # Pluck
 
-Pluck is a fast, lightweight, self-hosted ephemeral file-sharing application. It consists of a self-hosted ASP.NET Core Web API and a feature-rich C# CLI client with Spectre.Console UI formatting, file upload/download progress tracking, and clipboard integration.
+Pluck is a lightweight, self-hosted ephemeral file-sharing application.  
+It consists of a self-hosted ASP.NET Core Web API and a feature-rich C# CLI client with Spectre.Console UI formatting, file upload/download progress tracking, and clipboard integration.
+
+---
+
+## Table of Contents
+
+- [How Pluck Works](#how-pluck-works)
+- [Installation](#installation)
+  - [Linux & macOS](#linux--macos)
+  - [Windows](#windows)
+  - [Manual Download (GitHub Releases)](#manual-download-github-releases)
+- [CLI Usage & Command Reference](#cli-usage--command-reference)
+  - [pluck config](#pluck-config)
+  - [pluck share](#pluck-share)
+  - [pluck get](#pluck-get)
+  - [pluck list](#pluck-list)
+  - [pluck file](#pluck-file)
+  - [pluck key-gen](#pluck-key-gen)
+  - [pluck create-user](#pluck-create-user-admin-only)
+  - [pluck revoke-user](#pluck-revoke-user-admin-only)
+- [Self-Hosting Pluck API](#self-hosting-pluck-api)
+  - [compose.yaml](#composeyaml)
+  - [Environment Variables](#environment-variables)
+  - [Starting the Server](#starting-the-server)
+- [License](#license)
 
 ---
 
