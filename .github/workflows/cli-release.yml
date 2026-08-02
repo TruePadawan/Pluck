@@ -1,0 +1,58 @@
+name: Publish CLI Binaries
+
+on:
+  push:
+    tags:
+      - 'cli-v*'
+
+jobs:
+  release-cli:
+    name: Build and Release CLI Binaries
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Extract Tag Version
+        id: get_version
+        run: |
+          RAW_TAG="${GITHUB_REF#refs/tags/}"
+          VERSION="${RAW_TAG#cli-}"
+          echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Build Binaries
+        run: |
+          VERSION="${{ steps.get_version.outputs.VERSION }}"
+          mkdir -p dist
+
+          # Linux x64
+          dotnet publish src/Pluck.Cli/Pluck.Cli.csproj -c Release -r linux-x64 --self-contained true -p:PublishSingleFile=true -o ./publish/linux-x64
+          mv ./publish/linux-x64/Pluck.Cli ./dist/pluck-${VERSION}-linux-x64
+
+          # Windows x64
+          dotnet publish src/Pluck.Cli/Pluck.Cli.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o ./publish/win-x64
+          mv ./publish/win-x64/Pluck.Cli.exe ./dist/pluck-${VERSION}-win-x64.exe
+
+          # macOS ARM64 (Apple Silicon)
+          dotnet publish src/Pluck.Cli/Pluck.Cli.csproj -c Release -r osx-arm64 --self-contained true -p:PublishSingleFile=true -o ./publish/osx-arm64
+          mv ./publish/osx-arm64/Pluck.Cli ./dist/pluck-${VERSION}-osx-arm64
+
+          # macOS x64 (Intel)
+          dotnet publish src/Pluck.Cli/Pluck.Cli.csproj -c Release -r osx-x64 --self-contained true -p:PublishSingleFile=true -o ./publish/osx-x64
+          mv ./publish/osx-x64/Pluck.Cli ./dist/pluck-${VERSION}-osx-x64
+
+      - name: Create GitHub Release and Upload Binaries
+        uses: softprops/action-gh-release@v2
+        with:
+          name: CLI Release ${{ steps.get_version.outputs.VERSION }}
+          files: ./dist/*
+          draft: false
+          prerelease: false
