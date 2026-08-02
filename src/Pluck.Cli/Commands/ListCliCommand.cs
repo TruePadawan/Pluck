@@ -28,7 +28,7 @@ public class ListCliCommand
             PluckHttpClient.BaseAddress = new Uri(pluckConfig.ServerUrl);
             PluckHttpClient.DefaultRequestHeaders.Add("X-PLUCK-API-KEY", pluckConfig.ApiUrl);
 
-            var url = Name is not null ? $"/api/list?name={Uri.EscapeDataString(Name)}" : "/api/list";
+            var url = Name is not null ? $"/api/files?name={Uri.EscapeDataString(Name)}" : "/api/list";
             var response = await PluckHttpClient.GetAsync(url);
 
             if (!response.IsSuccessStatusCode)
