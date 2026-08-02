@@ -53,6 +53,11 @@ public static class AdminEndpoints
                     return TypedResults.Conflict(new ErrorResponseDto("Cannot delete admin user"));
                 }
 
+                if (!await userRepository.NameExists(name))
+                {
+                    return TypedResults.NotFound(new ErrorResponseDto($"User with name {name} not found"));
+                }
+
                 await userRepository.DeleteUserByName(name);
                 return TypedResults.NoContent();
             });
