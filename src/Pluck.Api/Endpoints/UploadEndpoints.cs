@@ -89,10 +89,7 @@ public static class UploadEndpoints
                         var file = await fileRepository.CreateFile(fileDto);
 
                         // return data about the file and its download link
-                        var serverBaseUrl = $"{request.Scheme}://{request.Host}";
-                        var fileDownloadUrl = $"{serverBaseUrl}/f/{file.Token}";
-                        var result = new FileResponseDto(file.Token, file.OriginalFileName, file.DownloadsLeft,
-                            file.ExpiresAt, fileDownloadUrl);
+                        var result = Utilities.GenerateFileResponse(file, request);
                         return TypedResults.Created($"{uploadDirectory}/{file.Token}", result);
                     }
                 }
