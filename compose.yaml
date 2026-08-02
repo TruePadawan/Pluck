@@ -1,7 +1,20 @@
-﻿services:
+services:
   pluck.api:
-    image: pluck.api
+    image: ghcr.io/truepadawan/pluck-api:latest
     build:
       context: .
       dockerfile: src/Pluck.Api/Dockerfile
-
+    container_name: pluck-api
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_HTTP_PORTS=8080
+      # Required Pluck API configuration:
+      - PluckApi__AdminKey=YOUR_SECURE_ADMIN_KEY_HERE # Use the pluck cli tool to generate a secure key via the command: pluck key-gen
+      - PluckApi__UploadDirectory=/app/pluck/uploads
+      - ConnectionStrings__DefaultConnection=Data Source=/app/pluck/pluck.db;
+    volumes:
+      # Mounts the local ./pluck folder to /app/pluck inside the container
+      - ./pluck:/app/pluck
