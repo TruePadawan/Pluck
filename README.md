@@ -1,0 +1,197 @@
+# Pluck
+
+Pluck is a fast, lightweight file-sharing application consisting of a self-hosted ASP.NET Core Web API and a feature-rich C# CLI client with Spectre.Console UI formatting, file upload/download progress tracking, and clipboard integration.
+
+---
+
+## Installation
+
+### Linux & macOS
+
+Run the official installation script in your terminal to automatically detect your system architecture and install the `pluck` executable to `/usr/local/bin`:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/TruePadawan/Pluck/main/install.sh | sh
+```
+
+### Windows
+
+Install natively via Windows Package Manager (WinGet):
+
+```cmd
+winget install pluck.cli
+```
+
+### Manual Download (GitHub Releases)
+
+Single-file standalone binaries are available on the [GitHub Releases](https://github.com/TruePadawan/Pluck/releases) page. Download the appropriate binary for your system, rename it to `pluck` (or `pluck.exe`), and place it in your system PATH:
+
+- Linux (x64): `pluck-vX.Y.Z-linux-x64`
+- Windows (x64): `pluck-vX.Y.Z-win-x64.exe`
+- macOS Apple Silicon: `pluck-vX.Y.Z-osx-arm64`
+- macOS Intel: `pluck-vX.Y.Z-osx-x64`
+
+---
+
+## CLI Usage & Command Reference
+
+### `pluck config`
+
+Links the Pluck CLI to a self-hosted Pluck API instance and saves credentials to `~/.pluck/config.json`.
+
+```bash
+pluck config --server <SERVER_URL> --key <API_KEY>
+```
+
+**Options:**
+- `--server <url>` *(Required)*: The base URL of the Pluck API instance (e.g., `http://localhost:8080` or `https://pluck.example.com`).
+- `--key <key>` *(Required)*: The API key used for authentication.
+
+---
+
+### `pluck share`
+
+Uploads a file to the configured Pluck server with real-time transfer speed and progress tracking. Automatically copies the generated download URL to the clipboard.
+
+```bash
+pluck share <filepath> [--ttl <hours>] [--downloads <count>]
+```
+
+**Arguments:**
+- `<filepath>` *(Required)*: The path to the local file to upload.
+
+**Options:**
+- `--ttl <hours>` *(Default: `24`)*: Time-to-live for the file in hours.
+- `--downloads <count>` *(Optional)*: Maximum allowed downloads before the file expires.
+
+---
+
+### `pluck get`
+
+Downloads a file from a Pluck instance URL with real-time progress tracking.
+
+```bash
+pluck get <url> [--save-dir <directory>]
+```
+
+**Arguments:**
+- `<url>` *(Required)*: The full download URL of the file to retrieve.
+
+**Options:**
+- `--save-dir <dir>` *(Optional)*: The output directory to save the file into. Defaults to the current working directory.
+
+---
+
+### `pluck list`
+
+Lists active (unexpired) files on the connected Pluck instance in a styled table.
+
+```bash
+pluck list [--name <username>]
+```
+
+**Options:**
+- `--name <username>` *(Optional, Admin only)*: Filter listed files by owner username.
+
+---
+
+### `pluck file`
+
+Displays detailed metadata for a specific file using its token, and copies the download URL to the clipboard.
+
+```bash
+pluck file <token>
+```
+
+**Arguments:**
+- `<token>` *(Required)*: The unique token identifier of the file.
+
+---
+
+### `pluck key-gen`
+
+Generates a random 32-character API key using GUID formatting and copies it directly to your system clipboard. Useful for creating initial admin keys or new user credentials.
+
+```bash
+pluck key-gen
+```
+
+---
+
+### `pluck create-user` *(Admin Only)*
+
+Generates a new non-admin user account on the server, outputs the generated API key, and copies it to the clipboard.
+
+```bash
+pluck create-user <name>
+```
+
+**Arguments:**
+- `<name>` *(Required)*: The username for the new account.
+
+---
+
+### `pluck revoke-user` *(Admin Only)*
+
+Revokes and deletes a user account from the server. Prompts for confirmation before proceeding.
+
+```bash
+pluck revoke-user <name> [--force]
+```
+
+**Arguments:**
+- `<name>` *(Required)*: The username of the account to revoke.
+
+**Options:**
+- `--force` *(Optional)*: Skips the interactive confirmation prompt.
+
+---
+
+## Self-Hosting Pluck API
+
+Pluck API is packaged as a container image hosted on GitHub Container Registry (`ghcr.io/truepadawan/pluck-api`).
+
+### `compose.yaml`
+
+Create a `compose.yaml` file on your server:
+
+```yaml
+services:
+  pluck.api:
+    image: ghcr.io/truepadawan/pluck-api:latest
+    container_name: pluck-api
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_HTTP_PORTS=8080
+      - PluckApi__AdminKey=YOUR_SECURE_ADMIN_KEY
+      - PluckApi__UploadDirectory=/app/pluck/uploads
+      - ConnectionStrings__DefaultConnection=Data Source=/app/pluck/pluck.db;
+    volumes:
+      - ./pluck:/app/pluck
+```
+
+### Environment Variables
+
+| Variable | Required | Description |
+| :--- | :--- | :--- |
+| `PluckApi__AdminKey` | Yes | The master API key for the initial Admin account. |
+| `PluckApi__UploadDirectory` | Yes | Directory path inside container where uploaded files are saved (`/app/pluck/uploads`). |
+| `ConnectionStrings__DefaultConnection` | Yes | SQLite connection string (`Data Source=/app/pluck/pluck.db;`). |
+| `ASPNETCORE_HTTP_PORTS` | No | Internal HTTP port (Default: `8080`). |
+
+### Starting the Server
+
+```bash
+docker compose up -d
+```
+
+The server will automatically initialize the SQLite database (`/app/pluck/pluck.db`) and create the upload directory (`/app/pluck/uploads`).
+
+Connect your CLI client to the self-hosted instance:
+
+```bash
+pluck config --server http://YOUR_SERVER_IP:8080 --key YOUR_SECURE_ADMIN_KEY
+```
