@@ -56,3 +56,11 @@ jobs:
           files: ./dist/*
           draft: false
           prerelease: false
+
+      - name: Submit Update to WinGet
+        uses: microsoft/winget-create-cli-action@v1
+        with:
+          identifier: TruePadawan.Pluck
+          version: ${{ steps.get_version.outputs.VERSION }}
+          urls: https://github.com/TruePadawan/Pluck/releases/download/cli-${{ steps.get_version.outputs.VERSION }}/pluck-${{ steps.get_version.outputs.VERSION }}-win-x64.exe
+          token: ${{ secrets.WINGET_TOKEN }}
