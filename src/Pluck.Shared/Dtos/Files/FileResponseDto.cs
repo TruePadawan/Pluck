@@ -1,6 +1,6 @@
 namespace Pluck.Shared.Dtos.Files;
 
-public record CreateFileResponseDto(
+public record FileResponseDto(
     string Token,
     string OriginalFileName,
     int? DownloadsLeft,

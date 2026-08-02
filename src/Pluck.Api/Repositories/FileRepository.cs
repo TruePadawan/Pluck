@@ -30,4 +30,24 @@ public class FileRepository(AppDbContext db)
         file.DecrementDownloadsLeft();
         await db.SaveChangesAsync();
     }
+
+    /// <summary>
+    /// Returns all unexpired files that belong to the specified user
+    /// </summary>
+    public async Task<List<File>> GetFilesByName(string name)
+    {
+        return await db.Files.Where(f => f.Owner.Name == name &&
+                                         (f.DownloadsLeft == null || f.DownloadsLeft > 0)
+                                         && f.ExpiresAt > DateTime.UtcNow).ToListAsync();
+    }
+
+    /// <summary>
+    /// Returns all unexpired files
+    /// </summary>
+    /// <returns></returns>
+    public async Task<List<File>> GetAllFiles()
+    {
+        return await db.Files.Where(f => (f.DownloadsLeft == null || f.DownloadsLeft > 0)
+                                         && f.ExpiresAt > DateTime.UtcNow).ToListAsync();
+    }
 }

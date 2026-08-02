@@ -22,7 +22,7 @@ public static class UploadEndpoints
             async Task<Results<BadRequest<ErrorResponseDto>,
                 InternalServerError<ErrorResponseDto>,
                 UnauthorizedHttpResult,
-                Created<CreateFileResponseDto>>> (
+                Created<FileResponseDto>>> (
                 HttpContext context, IOptions<PluckApiOptions> apiOptions,
                 FileRepository fileRepository,
                 [FromHeader(Name = "X-PLUCK-TTL")] double fileTtlInHours = 24,
@@ -91,7 +91,7 @@ public static class UploadEndpoints
                         // return data about the file and its download link
                         var serverBaseUrl = $"{request.Scheme}://{request.Host}";
                         var fileDownloadUrl = $"{serverBaseUrl}/f/{file.Token}";
-                        var result = new CreateFileResponseDto(file.Token, file.OriginalFileName, file.DownloadsLeft,
+                        var result = new FileResponseDto(file.Token, file.OriginalFileName, file.DownloadsLeft,
                             file.ExpiresAt, fileDownloadUrl);
                         return TypedResults.Created($"{uploadDirectory}/{file.Token}", result);
                     }

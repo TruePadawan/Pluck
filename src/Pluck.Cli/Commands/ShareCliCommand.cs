@@ -70,7 +70,7 @@ public class ShareCliCommand
                 throw new Exception(errorResponse?.Error);
             }
 
-            var successResponse = await response.Content.ReadFromJsonAsync<CreateFileResponseDto>();
+            var successResponse = await response.Content.ReadFromJsonAsync<FileResponseDto>();
             if (successResponse is null)
             {
                 throw new Exception("Unable to parse file info");
