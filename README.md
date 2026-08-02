@@ -1,6 +1,6 @@
 # Pluck
 
-Pluck is a fast, lightweight file-sharing application consisting of a self-hosted ASP.NET Core Web API and a feature-rich C# CLI client with Spectre.Console UI formatting, file upload/download progress tracking, and clipboard integration.
+Pluck is a lightweight file-sharing application consisting of a self-hosted ASP.NET Core Web API and a CLI client with Spectre.Console UI formatting, file upload/download progress tracking, and clipboard integration.
 
 ---
 
@@ -11,7 +11,7 @@ Pluck is a fast, lightweight file-sharing application consisting of a self-hoste
 Run the official installation script in your terminal to automatically detect your system architecture and install the `pluck` executable to `/usr/local/bin`:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/TruePadawan/Pluck/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/TruePadawan/Pluck/master/install.sh | sh
 ```
 
 ### Windows
