@@ -5,6 +5,7 @@ using Pluck.Cli.Config;
 using Pluck.Cli.Utils;
 using Pluck.Shared.Dtos;
 using Pluck.Shared.Dtos.Users;
+using Spectre.Console;
 
 namespace Pluck.Cli.Commands;
 
@@ -22,49 +23,54 @@ public class CreateUserCliCommand
     {
         try
         {
-            var pluckConfig = PluckConfigManager.GetConfig();
-            if (pluckConfig is null)
-            {
-                throw new Exception("Pluck config not found. Please run 'pluck config' to set up the config");
-            }
+            var pluckConfig = PluckConfigManager.GetConfigOrThrow();
 
             PluckHttpClient.BaseAddress = new Uri(pluckConfig.ServerUrl);
             PluckHttpClient.DefaultRequestHeaders.Add("X-PLUCK-API-KEY", pluckConfig.ApiUrl);
 
-            var response = await PluckHttpClient.PostAsync($"/api/admin/users?name={Name}", null);
-            if (!response.IsSuccessStatusCode)
-            {
-                if (response.StatusCode == HttpStatusCode.Unauthorized)
+            CreateUserResponseDto? successResponse = null;
+
+            await AnsiConsole.Status()
+                .Spinner(Spinner.Known.Dots)
+                .SpinnerStyle(new Style(Color.DodgerBlue1))
+                .StartAsync($"Creating user '{Name}'...", async _ =>
                 {
-                    throw new Exception("You're not authorized to create users. Only admins can create users.");
-                }
+                    var response = await PluckHttpClient.PostAsync($"/api/admin/users?name={Name}", null);
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        if (response.StatusCode == HttpStatusCode.Unauthorized)
+                        {
+                            throw new Exception(
+                                "You're not authorized to create users. Only admins can create users.");
+                        }
 
-                var errorResponse = await response.Content.ReadFromJsonAsync<ErrorResponseDto>();
-                throw new Exception(errorResponse?.Error);
-            }
+                        var errorResponse = await response.Content.ReadFromJsonAsync<ErrorResponseDto>();
+                        throw new Exception(errorResponse?.Error);
+                    }
 
-            var successResponse = await response.Content.ReadFromJsonAsync<CreateUserResponseDto>();
-            if (successResponse is null)
-            {
-                throw new Exception("Unable to parse API Key");
-            }
+                    successResponse = await response.Content.ReadFromJsonAsync<CreateUserResponseDto>();
+                    if (successResponse is null)
+                    {
+                        throw new Exception("Unable to parse API Key");
+                    }
+                });
 
             try
             {
-                ClipboardHelper.Copy(successResponse.ApiKey);
-                Console.WriteLine("The API Key has been copied to your clipboard.");
+                ClipboardHelper.Copy(successResponse!.ApiKey);
+                SpectreOutput.Copied("API Key");
             }
             catch (Exception e)
             {
-                Console.WriteLine($"Failed to copy API Key to clipboard: {e.Message}");
+                SpectreOutput.Warn($"Failed to copy API Key to clipboard: {e.Message}");
             }
 
-            Console.WriteLine($"User '{Name}' created successfully.");
-            Console.WriteLine($"API Key: {successResponse.ApiKey}");
+            SpectreOutput.Success($"User '{Name}' created successfully.");
+            SpectreOutput.ApiKeyPanel(successResponse!.ApiKey);
         }
         catch (Exception e)
         {
-            Console.WriteLine($"Failed to create user: {e.Message}");
+            SpectreOutput.Error($"Failed to create user: {e.Message}");
         }
         finally
         {

@@ -2,7 +2,9 @@ using System.Net;
 using System.Net.Http.Json;
 using DotMake.CommandLine;
 using Pluck.Cli.Config;
+using Pluck.Cli.Utils;
 using Pluck.Shared.Dtos;
+using Spectre.Console;
 
 namespace Pluck.Cli.Commands;
 
@@ -28,24 +30,34 @@ public class ConfigCliCommand
         {
             PluckHttpClient.BaseAddress = new Uri(ServerUrl);
             PluckHttpClient.DefaultRequestHeaders.Add("X-PLUCK-API-KEY", ApiKey);
-            var response = await PluckHttpClient.GetAsync("/api");
-            if (response.StatusCode == HttpStatusCode.Unauthorized)
-            {
-                throw new Exception("Invalid API key. Ensure the API key and server is correct");
-            }
 
-            var user = await response.Content.ReadFromJsonAsync<PingUserResponseDto>();
-            if (user is null)
-            {
-                throw new Exception("Unable to parse user info");
-            }
+            PingUserResponseDto? user = null;
 
-            PluckConfigManager.Save(new PluckConfig(ServerUrl, ApiKey));
-            Console.WriteLine($"Welcome, {user.Name}");
+            await AnsiConsole.Status()
+                .Spinner(Spinner.Known.Dots)
+                .SpinnerStyle(new Style(Color.DodgerBlue1))
+                .StartAsync("Validating credentials...", async _ =>
+                {
+                    var response = await PluckHttpClient.GetAsync("/api");
+                    if (response.StatusCode == HttpStatusCode.Unauthorized)
+                    {
+                        throw new Exception("Invalid API key. Ensure the API key and server is correct");
+                    }
+
+                    user = await response.Content.ReadFromJsonAsync<PingUserResponseDto>();
+                    if (user is null)
+                    {
+                        throw new Exception("Unable to parse user info");
+                    }
+
+                    PluckConfigManager.Save(new PluckConfig(ServerUrl, ApiKey));
+                });
+
+            SpectreOutput.Success($"Welcome, {user!.Name}");
         }
         catch (Exception e)
         {
-            Console.WriteLine($"Failed to configure Pluck CLI: {e.Message}");
+            SpectreOutput.Error($"Failed to configure Pluck CLI: {e.Message}");
         }
         finally
         {

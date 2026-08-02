@@ -5,6 +5,7 @@ using Pluck.Cli.Config;
 using Pluck.Cli.Utils;
 using Pluck.Shared.Dtos;
 using Pluck.Shared.Dtos.Files;
+using Spectre.Console;
 
 namespace Pluck.Cli.Commands;
 
@@ -21,58 +22,59 @@ public class FileCliCommand
     {
         try
         {
-            var pluckConfig = PluckConfigManager.GetConfig();
-            if (pluckConfig is null)
-            {
-                throw new Exception("Pluck config not found. Please run 'pluck config' to set up the config");
-            }
+            var pluckConfig = PluckConfigManager.GetConfigOrThrow();
 
             PluckHttpClient.BaseAddress = new Uri(pluckConfig.ServerUrl);
             PluckHttpClient.DefaultRequestHeaders.Add("X-PLUCK-API-KEY", pluckConfig.ApiUrl);
 
-            var response = await PluckHttpClient.GetAsync($"/api/files/{Uri.EscapeDataString(Token)}");
+            FileResponseDto? file = null;
 
-            if (!response.IsSuccessStatusCode)
-            {
-                if (response.StatusCode == HttpStatusCode.Unauthorized)
+            await AnsiConsole.Status()
+                .Spinner(Spinner.Known.Dots)
+                .SpinnerStyle(new Style(Color.DodgerBlue1))
+                .StartAsync("Fetching file details...", async _ =>
                 {
-                    throw new Exception("You're not authorized to view this file.");
-                }
+                    var response = await PluckHttpClient.GetAsync($"/api/files/{Uri.EscapeDataString(Token)}");
 
-                if (response.StatusCode == HttpStatusCode.NotFound)
-                {
-                    throw new Exception("File not found. It may have expired or reached its download limit.");
-                }
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        if (response.StatusCode == HttpStatusCode.Unauthorized)
+                        {
+                            throw new Exception("You're not authorized to view this file.");
+                        }
 
-                var errorResponse = await response.Content.ReadFromJsonAsync<ErrorResponseDto>();
-                throw new Exception(errorResponse?.Error);
-            }
+                        if (response.StatusCode == HttpStatusCode.NotFound)
+                        {
+                            throw new Exception(
+                                "File not found. It may have expired or reached its download limit.");
+                        }
 
-            var file = await response.Content.ReadFromJsonAsync<FileResponseDto>();
-            if (file is null)
-            {
-                throw new Exception("Unable to parse file details");
-            }
+                        var errorResponse = await response.Content.ReadFromJsonAsync<ErrorResponseDto>();
+                        throw new Exception(errorResponse?.Error);
+                    }
+
+                    file = await response.Content.ReadFromJsonAsync<FileResponseDto>();
+                    if (file is null)
+                    {
+                        throw new Exception("Unable to parse file details");
+                    }
+                });
 
             try
             {
-                ClipboardHelper.Copy(file.DownloadUrl);
-                Console.WriteLine("The file download url has been copied to your clipboard.");
+                ClipboardHelper.Copy(file!.DownloadUrl);
+                SpectreOutput.Copied("Download URL");
             }
             catch (Exception e)
             {
-                Console.WriteLine($"Failed to copy download url to clipboard: {e.Message}");
+                SpectreOutput.Warn($"Failed to copy download url to clipboard: {e.Message}");
             }
 
-            Console.WriteLine($"Token: {file.Token}");
-            Console.WriteLine($"Name: {file.OriginalFileName}");
-            Console.WriteLine($"Downloads Left: {file.DownloadsLeft}");
-            Console.WriteLine($"Expires At: {file.ExpiresAt}");
-            Console.WriteLine($"Download URL: {file.DownloadUrl}");
+            SpectreOutput.FileDetail(file!);
         }
         catch (Exception e)
         {
-            Console.WriteLine($"Failed to retrieve file: {e.Message}");
+            SpectreOutput.Error($"Failed to retrieve file: {e.Message}");
         }
         finally
         {

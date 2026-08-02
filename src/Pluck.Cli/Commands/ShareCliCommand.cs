@@ -8,6 +8,7 @@ using Pluck.Cli.Config;
 using Pluck.Cli.Utils;
 using Pluck.Shared.Dtos;
 using Pluck.Shared.Dtos.Files;
+using Spectre.Console;
 
 namespace Pluck.Cli.Commands;
 
@@ -29,11 +30,7 @@ public class ShareCliCommand
     {
         try
         {
-            var pluckConfig = PluckConfigManager.GetConfig();
-            if (pluckConfig is null)
-            {
-                throw new Exception("Pluck config not found. Please run 'pluck config' to set up the config");
-            }
+            var pluckConfig = PluckConfigManager.GetConfigOrThrow();
 
             PluckHttpClient.BaseAddress = new Uri(pluckConfig.ServerUrl);
             PluckHttpClient.DefaultRequestHeaders.Add("X-PLUCK-API-KEY", pluckConfig.ApiUrl);
@@ -45,55 +42,74 @@ public class ShareCliCommand
             }
 
             var absoluteFilePath = Path.GetFullPath(FilePath);
+            var fileName = Path.GetFileName(absoluteFilePath);
+            var fileSize = new FileInfo(absoluteFilePath).Length;
 
-            await using var fileStream = File.OpenRead(absoluteFilePath);
-            using var fileContent = new StreamContent(fileStream);
+            FileResponseDto? successResponse = null;
 
-            // Set the content-type of the file
-            var fileMimeType = MimeUtility.GetMimeMapping(absoluteFilePath);
-            fileContent.Headers.ContentType = new MediaTypeHeaderValue(fileMimeType);
-
-            using var form = new MultipartFormDataContent();
-            // Attach file to form body
-            form.Add(fileContent, "file", Path.GetFileName(absoluteFilePath));
-
-            var response = await PluckHttpClient.PostAsync($"/api/upload", form);
-            if (!response.IsSuccessStatusCode)
-            {
-                if (response.StatusCode == HttpStatusCode.Unauthorized)
+            await AnsiConsole.Progress()
+                .Columns(
+                    new TaskDescriptionColumn(),
+                    new ProgressBarColumn(),
+                    new PercentageColumn(),
+                    new TransferSpeedColumn(),
+                    new RemainingTimeColumn())
+                .StartAsync(async ctx =>
                 {
-                    throw new Exception(
-                        "You're not authorized to upload to this Pluck instance. Please contact the server admin.");
-                }
+                    var uploadTask = ctx.AddTask($"Uploading [bold]{Markup.Escape(fileName)}[/]",
+                        maxValue: fileSize);
 
-                var errorResponse = await response.Content.ReadFromJsonAsync<ErrorResponseDto>();
-                throw new Exception(errorResponse?.Error);
-            }
+                    await using var fileStream = File.OpenRead(absoluteFilePath);
+                    await using var progressStream = new ProgressStream(fileStream,
+                        bytesRead => uploadTask.Increment(bytesRead));
+                    using var fileContent = new StreamContent(progressStream);
 
-            var successResponse = await response.Content.ReadFromJsonAsync<FileResponseDto>();
-            if (successResponse is null)
-            {
-                throw new Exception("Unable to parse file info");
-            }
+                    // Set the content-type of the file
+                    var fileMimeType = MimeUtility.GetMimeMapping(absoluteFilePath);
+                    fileContent.Headers.ContentType = new MediaTypeHeaderValue(fileMimeType);
+
+                    using var form = new MultipartFormDataContent();
+                    // Attach file to form body
+                    form.Add(fileContent, "file", fileName);
+
+                    var response = await PluckHttpClient.PostAsync("/api/upload", form);
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        if (response.StatusCode == HttpStatusCode.Unauthorized)
+                        {
+                            throw new Exception(
+                                "You're not authorized to upload to this Pluck instance. Please contact the server admin.");
+                        }
+
+                        var errorResponse = await response.Content.ReadFromJsonAsync<ErrorResponseDto>();
+                        throw new Exception(errorResponse?.Error);
+                    }
+
+                    successResponse = await response.Content.ReadFromJsonAsync<FileResponseDto>();
+                    if (successResponse is null)
+                    {
+                        throw new Exception("Unable to parse file info");
+                    }
+
+                    // Ensure the progress bar reaches 100%
+                    uploadTask.Value = uploadTask.MaxValue;
+                });
 
             try
             {
-                ClipboardHelper.Copy(successResponse.DownloadUrl);
-                Console.WriteLine("The download url has been copied to your clipboard.");
+                ClipboardHelper.Copy(successResponse!.DownloadUrl);
+                SpectreOutput.Copied("Download URL");
             }
             catch (Exception e)
             {
-                Console.WriteLine($"Failed to copy download url to clipboard: {e.Message}");
+                SpectreOutput.Warn($"Failed to copy download url to clipboard: {e.Message}");
             }
 
-            Console.WriteLine($"Download URL: {successResponse.DownloadUrl}");
-            Console.WriteLine($"Token: {successResponse.Token}");
-            Console.WriteLine($"Downloads Left: {successResponse.DownloadsLeft}");
-            Console.WriteLine($"Expires At: {successResponse.ExpiresAt}");
+            SpectreOutput.FileDetail(successResponse!);
         }
         catch (Exception e)
         {
-            Console.WriteLine($"Failed to upload file: {e.Message}");
+            SpectreOutput.Error($"Failed to upload file: {e.Message}");
         }
         finally
         {

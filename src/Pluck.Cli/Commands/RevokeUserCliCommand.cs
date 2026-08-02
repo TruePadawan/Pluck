@@ -2,7 +2,9 @@ using System.Net;
 using System.Net.Http.Json;
 using DotMake.CommandLine;
 using Pluck.Cli.Config;
+using Pluck.Cli.Utils;
 using Pluck.Shared.Dtos;
+using Spectre.Console;
 
 namespace Pluck.Cli.Commands;
 
@@ -13,38 +15,56 @@ public class RevokeUserCliCommand
     [CliArgument(Name = "name", Description = "The name of the user to revoke")]
     public required string Name { get; set; }
 
+    [CliOption(Name = "force", Description = "Skip confirmation prompt", Required = false)]
+    public bool Force { get; set; } = false;
+
     private static readonly HttpClient PluckHttpClient = new();
 
     public async Task RunAsync()
     {
         try
         {
-            var pluckConfig = PluckConfigManager.GetConfig();
-            if (pluckConfig is null)
+            var pluckConfig = PluckConfigManager.GetConfigOrThrow();
+
+            if (!Force)
             {
-                throw new Exception("Pluck config not found. Please run 'pluck config' to set up the config");
+                var confirmed = AnsiConsole.Confirm(
+                    $"Are you sure you want to revoke user [bold red]{Markup.Escape(Name)}[/]?",
+                    defaultValue: false);
+                if (!confirmed)
+                {
+                    SpectreOutput.Info("Operation cancelled.");
+                    return;
+                }
             }
 
             PluckHttpClient.BaseAddress = new Uri(pluckConfig.ServerUrl);
             PluckHttpClient.DefaultRequestHeaders.Add("X-PLUCK-API-KEY", pluckConfig.ApiUrl);
 
-            var response = await PluckHttpClient.DeleteAsync($"/api/admin/users/{Name}");
-            if (!response.IsSuccessStatusCode)
-            {
-                if (response.StatusCode == HttpStatusCode.Unauthorized)
+            await AnsiConsole.Status()
+                .Spinner(Spinner.Known.Dots)
+                .SpinnerStyle(new Style(Color.DodgerBlue1))
+                .StartAsync($"Revoking user '{Name}'...", async _ =>
                 {
-                    throw new Exception("You're not authorized to revoke users. Only admins can revoke users.");
-                }
+                    var response = await PluckHttpClient.DeleteAsync($"/api/admin/users/{Name}");
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        if (response.StatusCode == HttpStatusCode.Unauthorized)
+                        {
+                            throw new Exception(
+                                "You're not authorized to revoke users. Only admins can revoke users.");
+                        }
 
-                var errorResponse = await response.Content.ReadFromJsonAsync<ErrorResponseDto>();
-                throw new Exception(errorResponse?.Error);
-            }
+                        var errorResponse = await response.Content.ReadFromJsonAsync<ErrorResponseDto>();
+                        throw new Exception(errorResponse?.Error);
+                    }
+                });
 
-            Console.WriteLine($"User '{Name}' revoked successfully");
+            SpectreOutput.Success($"User '{Name}' revoked successfully.");
         }
         catch (Exception e)
         {
-            Console.WriteLine($"Failed to revoke user: {e.Message}");
+            SpectreOutput.Error($"Failed to revoke user: {e.Message}");
         }
         finally
         {

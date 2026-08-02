@@ -2,7 +2,9 @@ using System.Net;
 using System.Net.Http.Json;
 using DotMake.CommandLine;
 using Pluck.Cli.Config;
+using Pluck.Cli.Utils;
 using Pluck.Shared.Dtos;
+using Spectre.Console;
 
 namespace Pluck.Cli.Commands;
 
@@ -21,16 +23,12 @@ public class GetCliCommand
     {
         try
         {
-            var pluckConfig = PluckConfigManager.GetConfig();
-            if (pluckConfig is null)
-            {
-                throw new Exception("Pluck config not found. Please run 'pluck config' to set up the config");
-            }
+            var pluckConfig = PluckConfigManager.GetConfigOrThrow();
 
             PluckHttpClient.BaseAddress = new Uri(pluckConfig.ServerUrl);
             PluckHttpClient.DefaultRequestHeaders.Add("X-PLUCK-API-KEY", pluckConfig.ApiUrl);
 
-            var response = await PluckHttpClient.GetAsync(UrlLink);
+            var response = await PluckHttpClient.GetAsync(UrlLink, HttpCompletionOption.ResponseHeadersRead);
 
             if (!response.IsSuccessStatusCode)
             {
@@ -57,15 +55,48 @@ public class GetCliCommand
                 : Directory.GetCurrentDirectory();
             var savePath = Path.Combine(saveDir, fileName);
 
+            var contentLength = response.Content.Headers.ContentLength;
             await using var contentStream = await response.Content.ReadAsStreamAsync();
             await using var fileStream = File.Create(savePath);
-            await contentStream.CopyToAsync(fileStream);
 
-            Console.WriteLine($"File downloaded successfully: {savePath}");
+            if (contentLength.HasValue)
+            {
+                await AnsiConsole.Progress()
+                    .Columns(
+                        new TaskDescriptionColumn(),
+                        new ProgressBarColumn(),
+                        new PercentageColumn(),
+                        new TransferSpeedColumn(),
+                        new RemainingTimeColumn())
+                    .StartAsync(async ctx =>
+                    {
+                        var downloadTask = ctx.AddTask(
+                            $"Downloading [bold]{Markup.Escape(fileName)}[/]",
+                            maxValue: contentLength.Value);
+
+                        var buffer = new byte[81920];
+                        int bytesRead;
+                        while ((bytesRead = await contentStream.ReadAsync(buffer)) > 0)
+                        {
+                            await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead));
+                            downloadTask.Increment(bytesRead);
+                        }
+                    });
+            }
+            else
+            {
+                await AnsiConsole.Status()
+                    .Spinner(Spinner.Known.Dots)
+                    .SpinnerStyle(new Style(Color.DodgerBlue1))
+                    .StartAsync($"Downloading {Markup.Escape(fileName)}...",
+                        async _ => { await contentStream.CopyToAsync(fileStream); });
+            }
+
+            SpectreOutput.Success($"Saved to {savePath}");
         }
         catch (Exception e)
         {
-            Console.WriteLine($"Failed to download file: {e.Message}");
+            SpectreOutput.Error($"Failed to download file: {e.Message}");
         }
         finally
         {

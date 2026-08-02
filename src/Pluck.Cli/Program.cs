@@ -1,5 +1,6 @@
-﻿using DotMake.CommandLine;
+using DotMake.CommandLine;
 using Pluck.Cli.Commands;
+using Pluck.Cli.Utils;
 
 try
 {
@@ -7,5 +8,5 @@ try
 }
 catch (Exception e)
 {
-    Console.WriteLine($"Exception in main: {e.Message}");
+    SpectreOutput.Error($"Unexpected error: {e.Message}");
 }
