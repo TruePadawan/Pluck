@@ -1,6 +1,19 @@
 # Pluck
 
-Pluck is a lightweight file-sharing application consisting of a self-hosted ASP.NET Core Web API and a CLI client with Spectre.Console UI formatting, file upload/download progress tracking, and clipboard integration.
+Pluck is a fast, lightweight, self-hosted ephemeral file-sharing application. It consists of a self-hosted ASP.NET Core Web API and a feature-rich C# CLI client with Spectre.Console UI formatting, file upload/download progress tracking, and clipboard integration.
+
+---
+
+## How Pluck Works
+
+Pluck is designed for temporary file sharing with automatic lifecycle management and zero maintenance:
+
+1. **Upload & Configure Expiry:** When sharing a file via `pluck share`, you set a Time-To-Live (`--ttl` in hours, default 24 hours) and/or a maximum download count (`--downloads`).
+2. **Instant Link Generation:** The server generates a unique download token and link, which the CLI automatically copies to your system clipboard.
+3. **Automated Background Cleanup:** The Pluck API runs an automated background cleanup worker every 10 minutes.
+4. **Permanent File Purging:** A file is immediately rendered unavailable and permanently purged from both disk storage and the database as soon as:
+   - Its Time-To-Live (TTL) expires, or
+   - Its remaining download limit reaches zero.
 
 ---
 
@@ -62,7 +75,7 @@ pluck share <filepath> [--ttl <hours>] [--downloads <count>]
 
 **Options:**
 - `--ttl <hours>` *(Default: `24`)*: Time-to-live for the file in hours.
-- `--downloads <count>` *(Optional)*: Maximum allowed downloads before the file expires.
+- `--downloads <count>` *(Optional)*: Maximum allowed downloads before the file automatically expires.
 
 ---
 
@@ -188,10 +201,16 @@ services:
 docker compose up -d
 ```
 
-The server will automatically initialize the SQLite database (`/app/pluck/pluck.db`) and create the upload directory (`/app/pluck/uploads`).
+The server will automatically initialize the SQLite database (`/app/pluck/pluck.db`), create the upload directory (`/app/pluck/uploads`), and start the 10-minute background cleanup service.
 
 Connect your CLI client to the self-hosted instance:
 
 ```bash
 pluck config --server http://YOUR_SERVER_IP:8080 --key YOUR_SECURE_ADMIN_KEY
 ```
+
+---
+
+## License
+
+GPL-3.0 License.
