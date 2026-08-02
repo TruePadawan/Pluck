@@ -1,9 +1,6 @@
 services:
   pluck.api:
     image: ghcr.io/truepadawan/pluck-api:latest
-    build:
-      context: .
-      dockerfile: src/Pluck.Api/Dockerfile
     container_name: pluck-api
     restart: unless-stopped
     ports:
