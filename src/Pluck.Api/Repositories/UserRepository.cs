@@ -22,12 +22,12 @@ public class UserRepository(AppDbContext db)
 
     public async Task<bool> NameExists(string name)
     {
-        return await db.Users.AnyAsync(u => u.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+        return await db.Users.AnyAsync(u => u.Name == name.ToLowerInvariant());
     }
 
     public async Task DeleteUserByName(string name)
     {
-        var user = await db.Users.SingleOrDefaultAsync(u => u.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+        var user = await db.Users.SingleOrDefaultAsync(u => u.Name == name.ToLowerInvariant());
         if (user is not null)
         {
             db.Users.Remove(user);
