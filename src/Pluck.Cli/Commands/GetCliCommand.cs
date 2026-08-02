@@ -12,7 +12,7 @@ public class GetCliCommand
     [CliArgument(Name = "url", Description = "The URL of the file to download")]
     public required string UrlLink { get; set; }
 
-    [CliOption(Name = "save-dir", Description = "The directory to download the file to")]
+    [CliOption(Name = "save-dir", Description = "The directory to download the file to", Required = false)]
     public string? DownloadPath { get; set; }
 
     private static readonly HttpClient PluckHttpClient = new();
