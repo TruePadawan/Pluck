@@ -17,7 +17,7 @@ public class ShareCliCommand
     [CliOption(Name = "ttl", Description = "How long the file should exist for in hours")]
     public double Ttl { get; set; } = 24;
 
-    [CliOption(Name = "downloads", Description = "How many downloads the file should allow")]
+    [CliOption(Name = "downloads", Description = "How many downloads the file should allow", Required = false)]
     public double? Downloads { get; set; } = null;
 
     [CliArgument(Name = "filepath", Description = "The path to the file to upload")]
