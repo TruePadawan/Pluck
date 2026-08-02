@@ -2,9 +2,9 @@ using System.Net;
 using System.Net.Http.Json;
 using DotMake.CommandLine;
 using Pluck.Cli.Config;
+using Pluck.Cli.Utils;
 using Pluck.Shared.Dtos;
 using Pluck.Shared.Dtos.Users;
-using TextCopy;
 
 namespace Pluck.Cli.Commands;
 
@@ -51,7 +51,7 @@ public class CreateUserCliCommand
 
             try
             {
-                await ClipboardService.SetTextAsync(successResponse.ApiKey);
+                ClipboardHelper.Copy(successResponse.ApiKey);
                 Console.WriteLine("The API Key has been copied to your clipboard.");
             }
             catch (Exception e)

@@ -5,9 +5,9 @@ using System.Net.Http.Json;
 using DotMake.CommandLine;
 using MimeMapping;
 using Pluck.Cli.Config;
+using Pluck.Cli.Utils;
 using Pluck.Shared.Dtos;
 using Pluck.Shared.Dtos.Files;
-using TextCopy;
 
 namespace Pluck.Cli.Commands;
 
@@ -78,7 +78,7 @@ public class ShareCliCommand
 
             try
             {
-                await ClipboardService.SetTextAsync(successResponse.DownloadUrl);
+                ClipboardHelper.Copy(successResponse.DownloadUrl);
                 Console.WriteLine("The download url has been copied to your clipboard.");
             }
             catch (Exception e)
