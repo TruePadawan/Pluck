@@ -4,7 +4,7 @@ public sealed class File : EntityBase
 {
     public string Token { get; private set; }
     public Guid OwnerId { get; private set; }
-    public User? Owner { get; private set; }
+    public User Owner { get; private set; } = null!;
     public string DiskFileName { get; private set; }
     public string OriginalFileName { get; private set; }
     public string ContentType { get; private set; }

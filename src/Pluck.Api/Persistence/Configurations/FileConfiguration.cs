@@ -28,6 +28,7 @@ public class FileConfiguration : IEntityTypeConfiguration<File>
         builder.HasOne(f => f.Owner)
             .WithMany(u => u.Files)
             .HasForeignKey(f => f.OwnerId)
+            .IsRequired()
             .OnDelete(DeleteBehavior.Cascade);
     }
 }
