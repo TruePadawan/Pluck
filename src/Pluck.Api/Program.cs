@@ -66,4 +66,5 @@ app.MapMiscEndpoints();
 app.MapUploadEndpoints();
 app.MapDownloadEndpoints();
 app.MapAdminEndpoints();
+app.MapFileEndpoints();
 app.Run();

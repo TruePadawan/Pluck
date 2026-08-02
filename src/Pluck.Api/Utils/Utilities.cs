@@ -1,4 +1,6 @@
 using System.Security.Cryptography;
+using Pluck.Shared.Dtos.Files;
+using File = Pluck.Shared.Models.File;
 
 namespace Pluck.Api.Utils;
 
@@ -15,5 +17,13 @@ public static class Utilities
                 buffer[i] = alphabet[RandomNumberGenerator.GetInt32(alphabet.Length)];
             }
         });
+    }
+
+    public static FileResponseDto GenerateFileResponse(File file, HttpRequest request)
+    {
+        var serverBaseUrl = $"{request.Scheme}://{request.Host}";
+        var fileDownloadUrl = $"{serverBaseUrl}/f/{file.Token}";
+        return new FileResponseDto(file.Token, file.OriginalFileName, file.DownloadsLeft, file.ExpiresAt,
+            fileDownloadUrl);
     }
 }

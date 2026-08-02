@@ -20,9 +20,14 @@ public class FileRepository(AppDbContext db)
         return fileEntry;
     }
 
+    /// <summary>
+    /// Returns the file with the specified token if it exists and is not expired
+    /// </summary>
     public async Task<File?> GetFileByToken(string token)
     {
-        return await db.Files.SingleOrDefaultAsync(f => f.Token == token);
+        return await db.Files.SingleOrDefaultAsync(f => f.Token == token &&
+                                                        (f.DownloadsLeft == null || f.DownloadsLeft > 0)
+                                                        && f.ExpiresAt > DateTime.UtcNow);
     }
 
     public async Task DecrementDownloadsLeft(File file)
