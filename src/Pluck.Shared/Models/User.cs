@@ -27,7 +27,7 @@ public sealed class User : EntityBase
     public static User Create(string name, string apiKeyHash, string role)
     {
         ValidateInputs(name, apiKeyHash, role);
-        return new User(name, apiKeyHash, role);
+        return new User(name.ToLowerInvariant(), apiKeyHash, role);
     }
 
     public void Update(string name, string apiKeyHash, string role)

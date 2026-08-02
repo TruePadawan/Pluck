@@ -47,18 +47,20 @@ public static class AdminEndpoints
                     return TypedResults.Unauthorized();
                 }
 
+                var normalizedName = name.ToLowerInvariant();
+
                 // Prevent deletion of the admin user
-                if (name == adminUser.Name)
+                if (normalizedName == adminUser.Name)
                 {
                     return TypedResults.Conflict(new ErrorResponseDto("Cannot delete admin user"));
                 }
 
-                if (!await userRepository.NameExists(name))
+                if (!await userRepository.NameExists(normalizedName))
                 {
-                    return TypedResults.NotFound(new ErrorResponseDto($"User with name {name} not found"));
+                    return TypedResults.NotFound(new ErrorResponseDto($"User with name {normalizedName} not found"));
                 }
 
-                await userRepository.DeleteUserByName(name);
+                await userRepository.DeleteUserByName(normalizedName);
                 return TypedResults.NoContent();
             });
     }
