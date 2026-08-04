@@ -234,8 +234,9 @@ Connect your CLI client to the self-hosted instance:
 pluck config --server http://YOUR_SERVER_IP:8080 --key YOUR_SECURE_ADMIN_KEY
 ```
 
----
-
 ## License
 
-GPL-3.0 License.
+Pluck uses component-specific open-source licenses:
+
+- **Pluck API (`src/Pluck.Api`) & Shared Library (`src/Pluck.Shared`)**: Licensed under the [GNU Affero General Public License v3.0 (AGPL-3.0)](./LICENSE).
+- **Pluck CLI (`src/Pluck.Cli`)**: Licensed under the [GNU General Public License v3.0 (GPL-3.0)](./src/Pluck.Cli/LICENSE).
