@@ -38,7 +38,7 @@ public class ConfigCliCommand
                 .SpinnerStyle(new Style(Color.DodgerBlue1))
                 .StartAsync("Validating credentials...", async _ =>
                 {
-                    var response = await PluckHttpClient.GetAsync("/api");
+                    var response = await PluckHttpClient.GetAsync("/api/ping");
                     if (response.StatusCode == HttpStatusCode.Unauthorized)
                     {
                         throw new Exception("Invalid API key. Ensure the API key and server is correct");

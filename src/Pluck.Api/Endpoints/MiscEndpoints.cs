@@ -12,7 +12,7 @@ public static class MiscEndpoints
     public static void MapMiscEndpoints(this WebApplication app)
     {
         // Returns the authenticated user's name
-        app.MapGet("/api",
+        app.MapGet("/api/ping",
             Results<UnauthorizedHttpResult, Ok<PingUserResponseDto>> (HttpContext context) =>
             {
                 if (context.Items["User"] is not User user)
