@@ -12,62 +12,95 @@ namespace Pluck.Api.Endpoints;
 /// </summary>
 public static class AdminEndpoints
 {
-    public static void MapAdminEndpoints(this WebApplication app)
+    extension(WebApplication app)
     {
-        var adminRouteGroup = app.MapGroup("/api/admin");
+        /// <summary>
+        /// Maps all admin-related endpoints
+        /// </summary>
+        public void MapAdminEndpoints()
+        {
+            app.MapCreateNonAdminUser();
+            app.MapRemoveUser();
+        }
 
-        // CREATE A NON-ADMIN USER
-        adminRouteGroup.MapPost("/users",
-            async Task<Results<UnauthorizedHttpResult, Conflict<ErrorResponseDto>, Ok<CreateUserResponseDto>>> (
-                string name,
-                HttpContext context,
-                UserRepository userRepository) =>
-            {
-                if (context.Items["User"] is not User { Role: "Admin" })
-                {
-                    return TypedResults.Unauthorized();
-                }
+        /// <summary>
+        /// Creates a new non-admin user with the given unique name
+        /// </summary>
+        private void MapCreateNonAdminUser()
+        {
+            app.MapPost("/api/admin/users",
+                    async Task<Results<UnauthorizedHttpResult, Conflict<ErrorResponseDto>, Ok<CreateUserResponseDto>>> (
+                        string name,
+                        HttpContext context,
+                        UserRepository userRepository) =>
+                    {
+                        if (context.Items["User"] is not User { Role: "Admin" })
+                        {
+                            return TypedResults.Unauthorized();
+                        }
 
-                var newApiKey = Guid.NewGuid().ToString("N");
-                var apiKeyHash = KeyHasher.ComputeHash(newApiKey);
-                if (await userRepository.NameExists(name))
-                {
-                    return TypedResults.Conflict(new ErrorResponseDto($"The name {name} has already been used"));
-                }
+                        var newApiKey = Guid.NewGuid().ToString("N");
+                        var apiKeyHash = KeyHasher.ComputeHash(newApiKey);
+                        if (await userRepository.NameExists(name))
+                        {
+                            return TypedResults.Conflict(
+                                new ErrorResponseDto($"The name {name} has already been used"));
+                        }
 
-                await userRepository.CreateUser(new CreateUserDto(name, apiKeyHash, "User"));
-                return TypedResults.Ok(new CreateUserResponseDto(name, newApiKey));
-            });
+                        await userRepository.CreateUser(new CreateUserDto(name, apiKeyHash, "User"));
+                        return TypedResults.Ok(new CreateUserResponseDto(name, newApiKey));
+                    })
+                .WithName("CreateNonAdminUser")
+                .WithSummary("Creates a new non-admin user")
+                .WithDescription("""
+                                 Returns the new user and their API key.
+                                 It returns 401 if not authenticated as admin or 409 if the name is already used
+                                 """);
+        }
 
-        // REMOVES A USER FROM THE PLUCK INSTANCE
-        adminRouteGroup.MapDelete("/users/{name}",
-            async Task<Results<UnauthorizedHttpResult,
-                NoContent,
-                Conflict<ErrorResponseDto>,
-                NotFound<ErrorResponseDto>>>
-            (string name,
-                HttpContext context, UserRepository userRepository) =>
-            {
-                if (context.Items["User"] is not User { Role: "Admin" } adminUser)
-                {
-                    return TypedResults.Unauthorized();
-                }
+        /// <summary>
+        /// Deletes the user with the given name
+        /// </summary>
+        private void MapRemoveUser()
+        {
+            app.MapDelete("/api/admin/users/{name}",
+                    async Task<Results<UnauthorizedHttpResult,
+                        NoContent,
+                        Conflict<ErrorResponseDto>,
+                        NotFound<ErrorResponseDto>>>
+                    (string name,
+                        HttpContext context, UserRepository userRepository) =>
+                    {
+                        if (context.Items["User"] is not User { Role: "Admin" } adminUser)
+                        {
+                            return TypedResults.Unauthorized();
+                        }
 
-                var normalizedName = name.ToLowerInvariant();
+                        var normalizedName = name.ToLowerInvariant();
 
-                // Prevent deletion of the admin user
-                if (normalizedName == adminUser.Name)
-                {
-                    return TypedResults.Conflict(new ErrorResponseDto("Cannot delete admin user"));
-                }
+                        // Prevent deletion of the admin user
+                        if (normalizedName == adminUser.Name)
+                        {
+                            return TypedResults.Conflict(new ErrorResponseDto("Cannot delete admin user"));
+                        }
 
-                if (!await userRepository.NameExists(normalizedName))
-                {
-                    return TypedResults.NotFound(new ErrorResponseDto($"User with name {normalizedName} not found"));
-                }
+                        if (!await userRepository.NameExists(normalizedName))
+                        {
+                            return TypedResults.NotFound(
+                                new ErrorResponseDto($"User with name {normalizedName} not found"));
+                        }
 
-                await userRepository.DeleteUserByName(normalizedName);
-                return TypedResults.NoContent();
-            });
+                        await userRepository.DeleteUserByName(normalizedName);
+                        return TypedResults.NoContent();
+                    })
+                .WithName("RemoveUser")
+                .WithSummary("Deletes the user with the given name")
+                .WithDescription("""
+                                 Returns if 204 if the deletion was successful.
+                                 It returns 401 if not authenticated as admin,
+                                 409 if the name belongs to the admin user,
+                                 404 if the user with the given name does not exist.
+                                 """);
+        }
     }
 }

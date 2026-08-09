@@ -13,70 +13,101 @@ namespace Pluck.Api.Endpoints;
 /// </summary>
 public static class FileEndpoints
 {
-    public static void MapFileEndpoints(this WebApplication app)
+    extension(WebApplication app)
     {
-        var filesRouteGroup = app.MapGroup("/api/files");
+        /// <summary>
+        /// Maps all file-related endpoints
+        /// </summary>
+        public void MapFileEndpoints()
+        {
+            app.MapGetFile();
+            app.MapGetFiles();
+        }
 
-        // Return the unexpired files uploaded by the current user; it returns all files if the user is an admin
-        filesRouteGroup.MapGet("",
-            async Task<Results<UnauthorizedHttpResult, Ok<List<FileResponseDto>>>> (HttpContext context,
-                FileRepository fileRepository, string? name) =>
-            {
-                if (context.Items["User"] is not User user)
-                {
-                    return TypedResults.Unauthorized();
-                }
-
-                List<File> files;
-                if (user.Role == "Admin")
-                {
-                    if (name is not null)
+        /// <summary>
+        /// Return the unexpired files uploaded by the current user; it returns all files if the user is an admin
+        /// </summary>
+        private void MapGetFiles()
+        {
+            app.MapGet("/api/files",
+                    async Task<Results<UnauthorizedHttpResult, Ok<List<FileResponseDto>>>> (HttpContext context,
+                        FileRepository fileRepository, string? name) =>
                     {
-                        files = await fileRepository.GetFilesByName(name);
-                    }
-                    else
+                        if (context.Items["User"] is not User user)
+                        {
+                            return TypedResults.Unauthorized();
+                        }
+
+                        List<File> files;
+                        if (user.Role == "Admin")
+                        {
+                            if (name is not null)
+                            {
+                                files = await fileRepository.GetFilesByName(name);
+                            }
+                            else
+                            {
+                                files = await fileRepository.GetAllFiles();
+                            }
+                        }
+                        else
+                        {
+                            // A non-admin user can only see their own files
+                            if (name is not null && name != user.Name)
+                            {
+                                return TypedResults.Unauthorized();
+                            }
+
+                            files = await fileRepository.GetFilesByName(user.Name);
+                        }
+
+                        var request = context.Request;
+                        var response = files.Select(f => Utilities.GenerateFileResponse(f, request)).ToList();
+                        return TypedResults.Ok(response);
+                    })
+                .WithName("GetFiles")
+                .WithSummary("Returns the files uploaded by the authenticated user")
+                .WithDescription("""
+                                 Returns the files uploaded by the authenticated user or all files if the user is an admin.
+                                 It returns 401 if not authenticated or if a non-admin user tries to get files of another user.
+                                 """);
+        }
+
+        /// <summary>
+        /// Returns the details about the file associated with the token
+        /// </summary>
+        private void MapGetFile()
+        {
+            app.MapGet("/api/files/{token}",
+                    async Task<Results<UnauthorizedHttpResult, NotFound<ErrorResponseDto>, Ok<FileResponseDto>>> (
+                        HttpContext context, string token, FileRepository fileRepository) =>
                     {
-                        files = await fileRepository.GetAllFiles();
-                    }
-                }
-                else
-                {
-                    // A non-admin user can only see their own files
-                    if (name is not null && name != user.Name)
-                    {
-                        return TypedResults.Unauthorized();
-                    }
+                        if (context.Items["User"] is not User user)
+                        {
+                            return TypedResults.Unauthorized();
+                        }
 
-                    files = await fileRepository.GetFilesByName(user.Name);
-                }
+                        var file = await fileRepository.GetFileByToken(token);
+                        if (file is null)
+                        {
+                            return TypedResults.NotFound(
+                                new ErrorResponseDto("Could not find file with specified token"));
+                        }
 
-                var request = context.Request;
-                var response = files.Select(f => Utilities.GenerateFileResponse(f, request)).ToList();
-                return TypedResults.Ok(response);
-            });
+                        if (file.OwnerId != user.Id)
+                        {
+                            return TypedResults.Unauthorized();
+                        }
 
-        // Returns the details about the file associated with the token
-        filesRouteGroup.MapGet("/{token}",
-            async Task<Results<UnauthorizedHttpResult, NotFound<ErrorResponseDto>, Ok<FileResponseDto>>> (
-                HttpContext context, string token, FileRepository fileRepository) =>
-            {
-                if (context.Items["User"] is not User user)
-                {
-                    return TypedResults.Unauthorized();
-                }
-
-                var file = await fileRepository.GetFileByToken(token);
-                if (file is null)
-                {
-                    return TypedResults.NotFound(new ErrorResponseDto("Could not find file with specified token"));
-                }
-
-                if (file.OwnerId != user.Id)
-                {
-                    return TypedResults.Unauthorized();
-                }
-
-                return TypedResults.Ok(Utilities.GenerateFileResponse(file, context.Request));
-            });
+                        return TypedResults.Ok(Utilities.GenerateFileResponse(file, context.Request));
+                    })
+                .WithName("GetFile")
+                .WithSummary("Returns the details about the file associated with the token")
+                .WithDescription("""
+                                 Returns the details about the file associated with the token.
+                                 It returns 401 if not authenticated or if the file is not owned by the authenticated user,
+                                 or 404 if the file is not found.
+                                 """);
+        }
     }
 }
