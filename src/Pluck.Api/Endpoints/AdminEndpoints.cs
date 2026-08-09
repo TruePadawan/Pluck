@@ -7,11 +7,16 @@ using Pluck.Shared.Models;
 
 namespace Pluck.Api.Endpoints;
 
+/// <summary>
+/// Endpoints for performing admin-related actions
+/// </summary>
 public static class AdminEndpoints
 {
     public static void MapAdminEndpoints(this WebApplication app)
     {
         var adminRouteGroup = app.MapGroup("/api/admin");
+
+        // CREATE A NON-ADMIN USER
         adminRouteGroup.MapPost("/users",
             async Task<Results<UnauthorizedHttpResult, Conflict<ErrorResponseDto>, Ok<CreateUserResponseDto>>> (
                 string name,
@@ -34,6 +39,7 @@ public static class AdminEndpoints
                 return TypedResults.Ok(new CreateUserResponseDto(name, newApiKey));
             });
 
+        // REMOVES A USER FROM THE PLUCK INSTANCE
         adminRouteGroup.MapDelete("/users/{name}",
             async Task<Results<UnauthorizedHttpResult,
                 NoContent,

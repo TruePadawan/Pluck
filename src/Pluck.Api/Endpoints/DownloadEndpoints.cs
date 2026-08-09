@@ -6,10 +6,14 @@ using Pluck.Shared.Dtos;
 
 namespace Pluck.Api.Endpoints;
 
+/// <summary>
+/// Endpoints for download-related actions
+/// </summary>
 public static class DownloadEndpoints
 {
     public static void MapDownloadEndpoints(this WebApplication app)
     {
+        // Streams the uploaded file to the client
         app.MapGet("/f/{token}",
             async Task<Results<NotFound<ErrorResponseDto>, FileStreamHttpResult>> (string token,
                 FileRepository fileRepository, IOptions<PluckApiOptions> apiOptions) =>

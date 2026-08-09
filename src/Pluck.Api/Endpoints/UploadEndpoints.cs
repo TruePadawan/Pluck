@@ -14,10 +14,14 @@ using MediaTypeHeaderValue = System.Net.Http.Headers.MediaTypeHeaderValue;
 
 namespace Pluck.Api.Endpoints;
 
+/// <summary>
+/// Endpoints for upload-related actions
+/// </summary>
 public static class UploadEndpoints
 {
     public static void MapUploadEndpoints(this WebApplication app)
     {
+        // Uploads a file to the server and returns a download link
         app.MapPost("/api/upload",
             async Task<Results<BadRequest<ErrorResponseDto>,
                 InternalServerError<ErrorResponseDto>,

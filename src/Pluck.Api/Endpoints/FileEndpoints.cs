@@ -8,6 +8,9 @@ using File = Pluck.Shared.Models.File;
 
 namespace Pluck.Api.Endpoints;
 
+/// <summary>
+/// Endpoints for file-related actions
+/// </summary>
 public static class FileEndpoints
 {
     public static void MapFileEndpoints(this WebApplication app)
@@ -52,6 +55,7 @@ public static class FileEndpoints
                 return TypedResults.Ok(response);
             });
 
+        // Returns the details about the file associated with the token
         filesRouteGroup.MapGet("/{token}",
             async Task<Results<UnauthorizedHttpResult, NotFound<ErrorResponseDto>, Ok<FileResponseDto>>> (
                 HttpContext context, string token, FileRepository fileRepository) =>
