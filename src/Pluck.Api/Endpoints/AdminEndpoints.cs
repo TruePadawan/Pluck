@@ -31,7 +31,7 @@ public static class AdminEndpoints
                 }
 
                 await userRepository.CreateUser(new CreateUserDto(name, apiKeyHash, "User"));
-                return TypedResults.Ok(new CreateUserResponseDto(newApiKey));
+                return TypedResults.Ok(new CreateUserResponseDto(name, newApiKey));
             });
 
         adminRouteGroup.MapDelete("/users/{name}",

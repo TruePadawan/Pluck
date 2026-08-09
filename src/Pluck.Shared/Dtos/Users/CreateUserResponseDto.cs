@@ -1,3 +1,3 @@
 namespace Pluck.Shared.Dtos.Users;
 
-public record CreateUserResponseDto(string ApiKey);
+public record CreateUserResponseDto(string Name, string ApiKey);
