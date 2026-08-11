@@ -12,6 +12,8 @@ namespace Pluck.Api.Endpoints;
 /// </summary>
 public static class AdminEndpoints
 {
+    private static RouteGroupBuilder GetRouteBuilder(WebApplication app) => app.MapGroup("/api/admin");
+
     extension(WebApplication app)
     {
         /// <summary>
@@ -28,7 +30,8 @@ public static class AdminEndpoints
         /// </summary>
         private void MapCreateNonAdminUser()
         {
-            app.MapPost("/api/admin/users",
+            var builder = GetRouteBuilder(app);
+            builder.MapPost("users",
                     async Task<Results<UnauthorizedHttpResult, Conflict<ErrorResponseDto>, Ok<CreateUserResponseDto>>> (
                         string name,
                         HttpContext context,
@@ -63,7 +66,8 @@ public static class AdminEndpoints
         /// </summary>
         private void MapRemoveUser()
         {
-            app.MapDelete("/api/admin/users/{name}",
+            var builder = GetRouteBuilder(app);
+            builder.MapDelete("users/{name}",
                     async Task<Results<UnauthorizedHttpResult,
                         NoContent,
                         Conflict<ErrorResponseDto>,

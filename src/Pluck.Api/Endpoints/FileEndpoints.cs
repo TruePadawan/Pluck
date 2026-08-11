@@ -13,6 +13,8 @@ namespace Pluck.Api.Endpoints;
 /// </summary>
 public static class FileEndpoints
 {
+    private static RouteGroupBuilder GetRouteBuilder(WebApplication app) => app.MapGroup("/api/files");
+
     extension(WebApplication app)
     {
         /// <summary>
@@ -29,7 +31,8 @@ public static class FileEndpoints
         /// </summary>
         private void MapGetFiles()
         {
-            app.MapGet("/api/files",
+            var builder = GetRouteBuilder(app);
+            builder.MapGet("",
                     async Task<Results<UnauthorizedHttpResult, Ok<List<FileResponseDto>>>> (HttpContext context,
                         FileRepository fileRepository, string? name) =>
                     {
@@ -78,7 +81,8 @@ public static class FileEndpoints
         /// </summary>
         private void MapGetFile()
         {
-            app.MapGet("/api/files/{token}",
+            var builder = GetRouteBuilder(app);
+            builder.MapGet("{token}",
                     async Task<Results<UnauthorizedHttpResult, NotFound<ErrorResponseDto>, Ok<FileResponseDto>>> (
                         HttpContext context, string token, FileRepository fileRepository) =>
                     {
