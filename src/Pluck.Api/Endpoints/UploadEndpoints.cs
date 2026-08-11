@@ -115,6 +115,8 @@ public static class UploadEndpoints
 
                         return TypedResults.BadRequest(new ErrorResponseDto("No valid file content was provided"));
                     }).Accepts<IFormFile>("multipart/form-data")
+                .WithApiVersionSet(Utilities.GetApiVersionSet(app))
+                .MapToApiVersion(1, 0)
                 .WithName("UploadFile")
                 .WithSummary("Uploads a file to the server and returns a download link")
                 .WithDescription("""

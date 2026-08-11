@@ -1,3 +1,4 @@
+using Asp.Versioning;
 using Microsoft.EntityFrameworkCore;
 using Pluck.Api.Endpoints;
 using Pluck.Api.Middlewares;
@@ -9,7 +10,7 @@ using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddOpenApi();
+// builder.Services.AddOpenApi();
 builder.Services.AddScoped<UserRepository>();
 builder.Services.AddScoped<FileRepository>();
 builder.Services.AddHostedService<FileCleanupBackgroundService>();
@@ -27,18 +28,46 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
     options.UseSqlite(connectionString);
 });
-
 // Ensure environment variables are set and loaded
 builder.Services.AddOptions<PluckApiOptions>()
     .Bind(builder.Configuration.GetSection(PluckApiOptions.SectionName))
     .ValidateDataAnnotations()
     .ValidateOnStart();
+builder.Services.AddApiVersioning(options =>
+    {
+        options.DefaultApiVersion = new ApiVersion(1, 0);
+        // Use header and query string to determine the API version
+        options.ApiVersionReader = ApiVersionReader.Combine(new HeaderApiVersionReader("X-API-VERSION"),
+            new QueryStringApiVersionReader("api-version"));
+        options.ReportApiVersions = true;
+        options.AssumeDefaultVersionWhenUnspecified = true;
+    })
+    .AddApiExplorer(options =>
+    {
+        options.GroupNameFormat = "'v'V";
+        options.SubstituteApiVersionInUrl = true;
+    }).AddOpenApi();
+
 var app = builder.Build();
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
-    app.MapScalarApiReference();
+    app.MapOpenApi().WithDocumentPerVersion();
+    // MapScalarApiReference sets up the Scalar UI at /scalar
+    // AddDocuments registers all known API versions so Scalar shows a dropdown to switch between them
+    app.MapScalarApiReference(options =>
+    {
+        var descriptions = app.DescribeApiVersions();
+        for (var i = 0; i < descriptions.Count; i++)
+        {
+            var description = descriptions[i];
+            var isDefault = i == descriptions.Count - 1;
+
+            // isDefault is used to mark the default API version in Scalar.
+            // This decides which version is selected by default when users visit the Scalar UI.
+            options.AddDocument(description.GroupName, description.GroupName, isDefault: isDefault);
+        }
+    });
 }
 
 app.UseHttpsRedirection();

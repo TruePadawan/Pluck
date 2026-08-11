@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using Pluck.Api.Repositories;
 using Pluck.Api.Security;
+using Pluck.Api.Utils;
 using Pluck.Shared.Dtos;
 using Pluck.Shared.Dtos.Users;
 using Pluck.Shared.Models;
@@ -53,6 +54,8 @@ public static class AdminEndpoints
                         await userRepository.CreateUser(new CreateUserDto(name, apiKeyHash, "User"));
                         return TypedResults.Ok(new CreateUserResponseDto(name, newApiKey));
                     })
+                .WithApiVersionSet(Utilities.GetApiVersionSet(app))
+                .MapToApiVersion(1, 0)
                 .WithName("CreateNonAdminUser")
                 .WithSummary("Creates a new non-admin user")
                 .WithDescription("""
@@ -97,6 +100,8 @@ public static class AdminEndpoints
                         await userRepository.DeleteUserByName(normalizedName);
                         return TypedResults.NoContent();
                     })
+                .WithApiVersionSet(Utilities.GetApiVersionSet(app))
+                .MapToApiVersion(1, 0)
                 .WithName("RemoveUser")
                 .WithSummary("Deletes the user with the given name")
                 .WithDescription("""

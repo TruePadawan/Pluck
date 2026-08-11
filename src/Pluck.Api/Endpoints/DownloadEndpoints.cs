@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.Extensions.Options;
 using Pluck.Api.Repositories;
 using Pluck.Api.Security;
+using Pluck.Api.Utils;
 using Pluck.Shared.Dtos;
 
 namespace Pluck.Api.Endpoints;
@@ -48,7 +49,10 @@ public static class DownloadEndpoints
                         var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read);
                         return TypedResults.File(fileStream, file.ContentType, file.OriginalFileName,
                             enableRangeProcessing: true);
-                    }).WithName("DownloadFile")
+                    })
+                .WithApiVersionSet(Utilities.GetApiVersionSet(app))
+                .MapToApiVersion(1, 0)
+                .WithName("DownloadFile")
                 .WithSummary("Streams the uploaded file to the client")
                 .WithDescription(
                     """

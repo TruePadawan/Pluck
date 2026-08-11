@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Http.HttpResults;
+using Pluck.Api.Utils;
 using Pluck.Shared.Dtos;
 using Pluck.Shared.Models;
 
@@ -34,6 +35,8 @@ public static class MiscEndpoints
 
                         return TypedResults.Ok(new PingUserResponseDto(user.Name));
                     })
+                .WithApiVersionSet(Utilities.GetApiVersionSet(app))
+                .MapToApiVersion(1, 0)
                 .WithName("PingUser")
                 .WithSummary("Pings the authenticated user")
                 .WithDescription("Returns the authenticated user's name. Returns 401 if not authenticated.");

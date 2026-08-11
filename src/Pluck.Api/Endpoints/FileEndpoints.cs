@@ -68,6 +68,8 @@ public static class FileEndpoints
                         var response = files.Select(f => Utilities.GenerateFileResponse(f, request)).ToList();
                         return TypedResults.Ok(response);
                     })
+                .WithApiVersionSet(Utilities.GetApiVersionSet(app))
+                .MapToApiVersion(1, 0)
                 .WithName("GetFiles")
                 .WithSummary("Returns the files uploaded by the authenticated user")
                 .WithDescription("""
@@ -105,6 +107,8 @@ public static class FileEndpoints
 
                         return TypedResults.Ok(Utilities.GenerateFileResponse(file, context.Request));
                     })
+                .WithApiVersionSet(Utilities.GetApiVersionSet(app))
+                .MapToApiVersion(1, 0)
                 .WithName("GetFile")
                 .WithSummary("Returns the details about the file associated with the token")
                 .WithDescription("""

@@ -1,4 +1,6 @@
 using System.Security.Cryptography;
+using Asp.Versioning;
+using Asp.Versioning.Builder;
 using Pluck.Shared.Dtos.Files;
 using File = Pluck.Shared.Models.File;
 
@@ -25,5 +27,10 @@ public static class Utilities
         var fileDownloadUrl = $"{serverBaseUrl}/f/{file.Token}";
         return new FileResponseDto(file.Token, file.OriginalFileName, file.DownloadsLeft, file.ExpiresAt,
             fileDownloadUrl);
+    }
+
+    public static ApiVersionSet GetApiVersionSet(WebApplication app)
+    {
+        return app.NewApiVersionSet().HasApiVersion(new ApiVersion(1.0)).ReportApiVersions().Build();
     }
 }
