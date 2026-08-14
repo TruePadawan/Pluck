@@ -12,6 +12,7 @@
         <PackageReference Include="Asp.Versioning.Http" Version="10.2.1" />
         <PackageReference Include="Asp.Versioning.Mvc.ApiExplorer" Version="10.2.1" />
         <PackageReference Include="Asp.Versioning.OpenApi" Version="10.2.1" />
+        <PackageReference Include="BCrypt.Net-Next" Version="4.2.0" />
         <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.10" />
         <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.10" />
         <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.10">
