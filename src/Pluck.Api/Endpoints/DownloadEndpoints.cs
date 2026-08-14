@@ -29,7 +29,7 @@ public static class DownloadEndpoints
         {
             app.MapGet("/f/{token}",
                     async Task<Results<NotFound<ErrorResponseDto>, FileStreamHttpResult>> (string token,
-                        FileRepository fileRepository, IOptions<PluckApiOptions> apiOptions) =>
+                        FileRepository fileRepository, IOptions<PluckApiOptions> apiOptions, HttpContext context) =>
                     {
                         var file = await fileRepository.GetFileByToken(token);
                         if (file is null)
@@ -44,6 +44,11 @@ public static class DownloadEndpoints
                         }
 
                         await fileRepository.DecrementDownloadsLeft(file);
+                        if (file.IsDirectory)
+                        {
+                            context.Response.Headers.Append("X-PLUCK-IS-DIRECTORY", "true");
+                        }
+
                         // Stream the file from the disk
                         var filePath = Path.Combine(config.UploadDirectory, file.DiskFileName);
                         var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read);
