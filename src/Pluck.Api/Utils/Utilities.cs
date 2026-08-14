@@ -26,7 +26,7 @@ public static class Utilities
         var serverBaseUrl = $"{request.Scheme}://{request.Host}";
         var fileDownloadUrl = $"{serverBaseUrl}/f/{file.Token}";
         return new FileResponseDto(file.Token, file.OriginalFileName, file.DownloadsLeft, file.ExpiresAt,
-            fileDownloadUrl, file.IsDirectory);
+            fileDownloadUrl, file.IsDirectory, file.IsPasswordProtected);
     }
 
     public static ApiVersionSet GetApiVersionSet(WebApplication app)

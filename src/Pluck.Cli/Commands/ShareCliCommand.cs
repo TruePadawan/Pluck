@@ -23,6 +23,9 @@ public class ShareCliCommand
     [CliOption(Name = "downloads", Description = "How many downloads the file/folder should allow", Required = false)]
     public double? Downloads { get; set; } = null;
 
+    [CliOption(Name = "pwd", Description = "Password to protect the file/folder", Required = false)]
+    public string? Password { get; set; }
+
     [CliArgument(Name = "path", Description = "The path to the file/folder to upload")]
     public required string ItemPath { get; set; }
 
@@ -42,6 +45,11 @@ public class ShareCliCommand
             {
                 PluckHttpClient.DefaultRequestHeaders.Add("X-PLUCK-MAX-DOWNLOADS",
                     Downloads.Value.ToString(CultureInfo.InvariantCulture));
+            }
+
+            if (Password is not null)
+            {
+                PluckHttpClient.DefaultRequestHeaders.Add("X-PLUCK-PASSWORD", Password);
             }
 
             var absoluteItemPath = Path.GetFullPath(ItemPath);

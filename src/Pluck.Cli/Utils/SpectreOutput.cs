@@ -51,6 +51,10 @@ public static class SpectreOutput
         grid.AddRow("[bold]Downloads Left[/]", file.DownloadsLeft?.ToString() ?? "Unlimited");
         grid.AddRow("[bold]Expires At[/]", Markup.Escape(file.ExpiresAt.ToString("g")));
         grid.AddRow("[bold]Download URL[/]", Markup.Escape(file.DownloadUrl));
+        if (file.IsPasswordProtected)
+        {
+            grid.AddRow("[bold]Protected[/]", "[yellow]Password Protected[/]");
+        }
 
         var panel = new Panel(grid)
             .Header("[bold dodgerblue1]File Details[/]")
@@ -82,6 +86,7 @@ public static class SpectreOutput
         table.AddColumn(new TableColumn("[bold]Name[/]"));
         table.AddColumn(new TableColumn("[bold]Downloads Left[/]").Centered());
         table.AddColumn(new TableColumn("[bold]Expires At[/]"));
+        table.AddColumn(new TableColumn("[bold]Protected[/]").Centered());
         table.AddColumn(new TableColumn("[bold]Download URL[/]"));
 
         foreach (var file in files)
@@ -91,6 +96,7 @@ public static class SpectreOutput
                 Markup.Escape(file.OriginalFileName),
                 file.DownloadsLeft?.ToString() ?? "Unlimited",
                 Markup.Escape(file.ExpiresAt.ToString("g")),
+                file.IsPasswordProtected ? "[yellow]Yes[/]" : "No",
                 Markup.Escape(file.DownloadUrl));
         }
 

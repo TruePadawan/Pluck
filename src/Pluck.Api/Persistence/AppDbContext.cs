@@ -36,7 +36,12 @@ public class AppDbContext : DbContext
                 if (adminUser is null)
                 {
                     var hashedKey = KeyHasher.ComputeHash(config.AdminKey);
-                    adminUser = User.Create("Admin", hashedKey, "Admin");
+                    adminUser = User.Create(new UserParams
+                    {
+                        Name = "Admin",
+                        ApiKeyHash = hashedKey,
+                        Role = "Admin"
+                    });
                     await db.Set<User>().AddAsync(adminUser, cancellationToken);
                     await db.SaveChangesAsync(cancellationToken);
                 }
@@ -47,7 +52,12 @@ public class AppDbContext : DbContext
                 if (adminUser is null)
                 {
                     var hashedKey = KeyHasher.ComputeHash(config.AdminKey);
-                    adminUser = User.Create("Admin", hashedKey, "Admin");
+                    adminUser = User.Create(new UserParams
+                    {
+                        Name = "Admin",
+                        ApiKeyHash = hashedKey,
+                        Role = "Admin"
+                    });
                     db.Set<User>().Add(adminUser);
                     db.SaveChangesAsync();
                 }

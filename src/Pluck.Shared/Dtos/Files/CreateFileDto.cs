@@ -7,5 +7,6 @@ public record CreateFileDto(
     string ContentType,
     double Ttl,
     int? MaxDownloads,
-    bool IsDirectory
+    bool IsDirectory,
+    string? PasswordHash
 );
