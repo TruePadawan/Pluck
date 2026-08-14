@@ -19,6 +19,9 @@ public class GetCliCommand
     [CliOption(Name = "save-dir", Description = "The directory to download the file/folder to", Required = false)]
     public string? DownloadPath { get; set; }
 
+    [CliOption(Name = "pwd", Description = "Password for password-protected files", Required = false)]
+    public string? Password { get; set; }
+
     private static readonly HttpClient PluckHttpClient = new();
 
     public async Task RunAsync()
@@ -30,7 +33,37 @@ public class GetCliCommand
             PluckHttpClient.BaseAddress = new Uri(pluckConfig.ServerUrl);
             PluckHttpClient.DefaultRequestHeaders.Add("X-PLUCK-API-KEY", pluckConfig.ApiUrl);
 
+            if (Password is not null)
+            {
+                PluckHttpClient.DefaultRequestHeaders.Add("X-PLUCK-PASSWORD", Password);
+            }
+
             var response = await PluckHttpClient.GetAsync(UrlLink, HttpCompletionOption.ResponseHeadersRead);
+
+            // Handle password-protected files
+            if (response.StatusCode == HttpStatusCode.Unauthorized &&
+                response.Headers.TryGetValues("X-PLUCK-PASSWORD-REQUIRED", out _))
+            {
+                if (Password is not null)
+                {
+                    // Password was provided but was incorrect
+                    throw new Exception("Incorrect password.");
+                }
+
+                // Prompt for password interactively
+                var enteredPassword = AnsiConsole.Prompt(
+                    new TextPrompt<string>("This file is password protected. Enter password:")
+                        .Secret());
+
+                PluckHttpClient.DefaultRequestHeaders.Add("X-PLUCK-PASSWORD", enteredPassword);
+                response = await PluckHttpClient.GetAsync(UrlLink, HttpCompletionOption.ResponseHeadersRead);
+
+                // Check if the entered password was also wrong
+                if (response.StatusCode == HttpStatusCode.Unauthorized)
+                {
+                    throw new Exception("Incorrect password.");
+                }
+            }
 
             if (!response.IsSuccessStatusCode)
             {
