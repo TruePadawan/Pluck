@@ -1,4 +1,5 @@
 using Pluck.Shared.Dtos.Files;
+using Pluck.Shared.Dtos.Users;
 using Spectre.Console;
 
 namespace Pluck.Cli.Utils;
@@ -91,6 +92,33 @@ public static class SpectreOutput
                 file.DownloadsLeft?.ToString() ?? "Unlimited",
                 Markup.Escape(file.ExpiresAt.ToString("g")),
                 Markup.Escape(file.DownloadUrl));
+        }
+
+        AnsiConsole.Write(table);
+    }
+
+    // User Table
+    public static void UserTable(List<UserResponseDto> users)
+    {
+        if (users.Count == 0)
+        {
+            Info("No users in the Pluck instance");
+            return;
+        }
+
+        var table = new Table()
+            .Border(TableBorder.Rounded)
+            .BorderStyle(new Style(Color.DodgerBlue1))
+            .Title("[bold dodgerblue1]Users[/]");
+
+        table.AddColumn(new TableColumn("[bold]Name[/]"));
+        table.AddColumn(new TableColumn("[bold]Role[/]"));
+
+        foreach (var user in users)
+        {
+            table.AddRow(
+                Markup.Escape(user.Name),
+                Markup.Escape(user.Role));
         }
 
         AnsiConsole.Write(table);

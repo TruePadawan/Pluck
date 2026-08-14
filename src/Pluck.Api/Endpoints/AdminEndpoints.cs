@@ -24,6 +24,7 @@ public static class AdminEndpoints
         {
             app.MapCreateNonAdminUser();
             app.MapRemoveUser();
+            app.MapGetAllUsers();
         }
 
         /// <summary>
@@ -110,6 +111,28 @@ public static class AdminEndpoints
                                  409 if the name belongs to the admin user,
                                  404 if the user with the given name does not exist.
                                  """);
+        }
+
+        private void MapGetAllUsers()
+        {
+            var builder = GetRouteBuilder(app);
+            builder.MapGet("/users",
+                    async Task<Results<UnauthorizedHttpResult, Ok<IEnumerable<UserResponseDto>>>> (HttpContext context,
+                        UserRepository userRepository) =>
+                    {
+                        if (context.Items["User"] is not User { Role: "Admin" } adminUser)
+                        {
+                            return TypedResults.Unauthorized();
+                        }
+
+                        var allUsers = await userRepository.GetAllUsers();
+                        var response = allUsers.Select(user => new UserResponseDto(user.Name, user.Role));
+                        return TypedResults.Ok(response);
+                    })
+                .WithApiVersionSet(Utilities.GetApiVersionSet(app))
+                .MapToApiVersion(1, 0)
+                .WithName("GetAllUsers")
+                .WithSummary("Returns all users in the Pluck instance");
         }
     }
 }
