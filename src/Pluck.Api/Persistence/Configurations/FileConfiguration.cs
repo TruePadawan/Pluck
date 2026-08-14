@@ -21,6 +21,7 @@ public class FileConfiguration : IEntityTypeConfiguration<File>
         builder.Property(m => m.LastModifiedAt)
             .IsRequired()
             .ValueGeneratedOnUpdate();
+        builder.Property(f => f.IsDirectory).IsRequired();
 
         builder.HasIndex(f => f.Token).IsUnique();
 

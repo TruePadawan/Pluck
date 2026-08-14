@@ -5,5 +5,6 @@ public record FileResponseDto(
     string OriginalFileName,
     int? DownloadsLeft,
     DateTime ExpiresAt,
-    string DownloadUrl
+    string DownloadUrl,
+    bool IsDirectory
 );

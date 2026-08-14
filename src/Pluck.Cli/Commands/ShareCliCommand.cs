@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.IO.Compression;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
@@ -12,22 +13,24 @@ using Spectre.Console;
 
 namespace Pluck.Cli.Commands;
 
-[CliCommand(Name = "share", Description = "Uploads a file to the Pluck instance", Parent = typeof(PluckCliCommand))]
+[CliCommand(Name = "share", Description = "Uploads a file/folder to the Pluck instance",
+    Parent = typeof(PluckCliCommand))]
 public class ShareCliCommand
 {
-    [CliOption(Name = "ttl", Description = "How long the file should exist for in hours")]
+    [CliOption(Name = "ttl", Description = "How long the file/folder should exist for in hours")]
     public double Ttl { get; set; } = 24;
 
-    [CliOption(Name = "downloads", Description = "How many downloads the file should allow", Required = false)]
+    [CliOption(Name = "downloads", Description = "How many downloads the file/folder should allow", Required = false)]
     public double? Downloads { get; set; } = null;
 
-    [CliArgument(Name = "filepath", Description = "The path to the file to upload")]
-    public required string FilePath { get; set; }
+    [CliArgument(Name = "path", Description = "The path to the file/folder to upload")]
+    public required string ItemPath { get; set; }
 
     private static readonly HttpClient PluckHttpClient = new();
 
     public async Task RunAsync()
     {
+        string? tempZipPath = null;
         try
         {
             var pluckConfig = PluckConfigManager.GetConfigOrThrow();
@@ -41,9 +44,20 @@ public class ShareCliCommand
                     Downloads.Value.ToString(CultureInfo.InvariantCulture));
             }
 
-            var absoluteFilePath = Path.GetFullPath(FilePath);
-            var fileName = Path.GetFileName(absoluteFilePath);
-            var fileSize = new FileInfo(absoluteFilePath).Length;
+            var absoluteItemPath = Path.GetFullPath(ItemPath);
+            if (Directory.Exists(absoluteItemPath))
+            {
+                // Zip the folder and extract its info
+                var directoryInfo = new DirectoryInfo(absoluteItemPath);
+                tempZipPath = Path.Combine(Path.GetTempPath(), $"{directoryInfo.Name}.zip");
+                await ZipFile.CreateFromDirectoryAsync(absoluteItemPath, tempZipPath, CompressionLevel.Fastest, true);
+                absoluteItemPath = tempZipPath;
+                // Add header that tells the backend that a folder is being uploaded
+                PluckHttpClient.DefaultRequestHeaders.Add("X-PLUCK-IS-DIRECTORY", "true");
+            }
+
+            var fileName = Path.GetFileName(absoluteItemPath);
+            var fileSize = new FileInfo(absoluteItemPath).Length;
 
             FileResponseDto? successResponse = null;
 
@@ -59,13 +73,13 @@ public class ShareCliCommand
                     var uploadTask = ctx.AddTask($"Uploading [bold]{Markup.Escape(fileName)}[/]",
                         maxValue: fileSize);
 
-                    await using var fileStream = File.OpenRead(absoluteFilePath);
+                    await using var fileStream = File.OpenRead(absoluteItemPath);
                     await using var progressStream = new ProgressStream(fileStream,
                         bytesRead => uploadTask.Increment(bytesRead));
                     using var fileContent = new StreamContent(progressStream);
 
                     // Set the content-type of the file
-                    var fileMimeType = MimeUtility.GetMimeMapping(absoluteFilePath);
+                    var fileMimeType = MimeUtility.GetMimeMapping(absoluteItemPath);
                     fileContent.Headers.ContentType = new MediaTypeHeaderValue(fileMimeType);
 
                     using var form = new MultipartFormDataContent();
@@ -114,6 +128,11 @@ public class ShareCliCommand
         finally
         {
             PluckHttpClient.Dispose();
+            // Delete the zip file used for folders if it was created
+            if (tempZipPath is not null && File.Exists(tempZipPath))
+            {
+                File.Delete(tempZipPath);
+            }
         }
     }
 }

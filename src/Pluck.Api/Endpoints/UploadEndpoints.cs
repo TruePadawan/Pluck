@@ -43,7 +43,9 @@ public static class UploadEndpoints
                         FileRepository fileRepository,
                         [FromHeader(Name = "X-PLUCK-TTL")] double fileTtlInHours = 24,
                         [FromHeader(Name = "X-PLUCK-MAX-DOWNLOADS")]
-                        int? fileMaxDownloads = null) =>
+                        int? fileMaxDownloads = null,
+                        [FromHeader(Name = "X-PLUCK-IS-DIRECTORY")]
+                        bool isDirectory = false) =>
                     {
                         if (context.Items["User"] is not User user)
                         {
@@ -103,7 +105,7 @@ public static class UploadEndpoints
                                 var fileContentType = fileSection.ContentType ?? "application/octet-stream";
                                 var fileDto = new CreateFileDto(user.Id, diskFileName, originalFileName,
                                     fileContentType,
-                                    fileTtlInHours, fileMaxDownloads);
+                                    fileTtlInHours, fileMaxDownloads, isDirectory);
                                 // Save the file entry in the database
                                 var file = await fileRepository.CreateFile(fileDto);
 

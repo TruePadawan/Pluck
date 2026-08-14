@@ -14,7 +14,7 @@ public class FileRepository(AppDbContext db)
         var fileExpiryDate = DateTime.UtcNow.AddHours(fileDto.Ttl);
         var fileEntry = File.Create(token, fileDto.OwnerId, fileDto.DiskFileName, fileDto.OriginalFileName,
             fileDto.ContentType,
-            fileDto.MaxDownloads, fileExpiryDate);
+            fileDto.MaxDownloads, fileExpiryDate, fileDto.IsDirectory);
         db.Files.Add(fileEntry);
         await db.SaveChangesAsync();
         return fileEntry;

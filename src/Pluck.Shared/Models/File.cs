@@ -10,6 +10,7 @@ public sealed class File : EntityBase
     public string ContentType { get; private set; }
     public int? DownloadsLeft { get; private set; }
     public DateTime ExpiresAt { get; private set; }
+    public bool IsDirectory { get; private set; }
 
     // For ORM frameworks
     private File()
@@ -21,11 +22,12 @@ public sealed class File : EntityBase
         ContentType = string.Empty;
         DownloadsLeft = null;
         ExpiresAt = DateTime.UtcNow;
+        IsDirectory = false;
     }
 
     private File(string token, Guid ownerId, string diskFileName, string originalFileName, string contentType,
         int? downloadsLeft,
-        DateTime expiresAt)
+        DateTime expiresAt, bool isDirectory)
     {
         Token = token;
         OwnerId = ownerId;
@@ -34,19 +36,21 @@ public sealed class File : EntityBase
         ContentType = contentType;
         DownloadsLeft = downloadsLeft;
         ExpiresAt = expiresAt;
+        IsDirectory = isDirectory;
     }
 
     public static File Create(string token, Guid ownerId, string diskFileName, string originalFileName,
         string contentType,
-        int? downloadsLeft, DateTime expiresAt)
+        int? downloadsLeft, DateTime expiresAt, bool isDirectory)
     {
         ValidateInputs(token, ownerId, diskFileName, originalFileName, contentType, downloadsLeft, expiresAt);
-        return new File(token, ownerId, diskFileName, originalFileName, contentType, downloadsLeft, expiresAt);
+        return new File(token, ownerId, diskFileName, originalFileName, contentType, downloadsLeft, expiresAt,
+            isDirectory);
     }
 
     public void Update(string token, Guid ownerId, string diskFileName, string originalFileName, string contentType,
         int? downloadsLeft,
-        DateTime expiresAt)
+        DateTime expiresAt, bool isDirectory)
     {
         ValidateInputs(token, ownerId, diskFileName, originalFileName, contentType, downloadsLeft, expiresAt);
         Token = token;
@@ -56,6 +60,7 @@ public sealed class File : EntityBase
         ContentType = contentType;
         DownloadsLeft = downloadsLeft;
         ExpiresAt = expiresAt;
+        IsDirectory = isDirectory;
 
         UpdateLastModified();
     }

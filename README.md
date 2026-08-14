@@ -89,14 +89,14 @@ pluck config --server <SERVER_URL> --key <API_KEY>
 
 ### `pluck share`
 
-Uploads a file to the configured Pluck server with real-time transfer speed and progress tracking. Automatically copies the generated download URL to the clipboard.
+Uploads a file or folder to the configured Pluck server with real-time transfer speed and progress tracking. Automatically copies the generated download URL to the clipboard.
 
 ```bash
 pluck share <filepath> [--ttl <hours>] [--downloads <count>]
 ```
 
 **Arguments:**
-- `<filepath>` *(Required)*: The path to the local file to upload.
+- `<filepath>` *(Required)*: The path to the local file/folder to upload.
 
 **Options:**
 - `--ttl <hours>` *(Default: `24`)*: Time-to-live for the file in hours.
@@ -106,7 +106,7 @@ pluck share <filepath> [--ttl <hours>] [--downloads <count>]
 
 ### `pluck get`
 
-Downloads a file from a Pluck instance URL with real-time progress tracking.
+Downloads a file or folder from a Pluck instance URL with real-time progress tracking.
 
 ```bash
 pluck get <url> [--save-dir <directory>]
@@ -116,13 +116,13 @@ pluck get <url> [--save-dir <directory>]
 - `<url>` *(Required)*: The full download URL of the file to retrieve.
 
 **Options:**
-- `--save-dir <dir>` *(Optional)*: The output directory to save the file into. Defaults to the current working directory.
+- `--save-dir <dir>` *(Optional)*: The output directory to save the file/folder into. Defaults to the current working directory.
 
 ---
 
 ### `pluck list`
 
-Lists active (unexpired) files on the connected Pluck instance in a styled table.
+Lists active (unexpired) files on the connected Pluck instance.
 
 ```bash
 pluck list [--name <username>]

@@ -6,5 +6,6 @@ public record CreateFileDto(
     string OriginalFileName,
     string ContentType,
     double Ttl,
-    int? MaxDownloads
+    int? MaxDownloads,
+    bool IsDirectory
 );
