@@ -1,3 +1,4 @@
+using System.IO.Compression;
 using System.Net;
 using System.Net.Http.Json;
 using DotMake.CommandLine;
@@ -8,13 +9,14 @@ using Spectre.Console;
 
 namespace Pluck.Cli.Commands;
 
-[CliCommand(Name = "get", Description = "Downloads a file from a Pluck instance", Parent = typeof(PluckCliCommand))]
+[CliCommand(Name = "get", Description = "Downloads a file/folder from a Pluck instance",
+    Parent = typeof(PluckCliCommand))]
 public class GetCliCommand
 {
-    [CliArgument(Name = "url", Description = "The URL of the file to download")]
+    [CliArgument(Name = "url", Description = "The URL of the file/folder to download")]
     public required string UrlLink { get; set; }
 
-    [CliOption(Name = "save-dir", Description = "The directory to download the file to", Required = false)]
+    [CliOption(Name = "save-dir", Description = "The directory to download the file/folder to", Required = false)]
     public string? DownloadPath { get; set; }
 
     private static readonly HttpClient PluckHttpClient = new();
@@ -34,7 +36,7 @@ public class GetCliCommand
             {
                 if (response.StatusCode == HttpStatusCode.NotFound)
                 {
-                    throw new Exception("File not found. It may have expired or reached its download limit.");
+                    throw new Exception("File/Folder not found. It may have expired or reached its download limit.");
                 }
 
                 var errorResponse = await response.Content.ReadFromJsonAsync<ErrorResponseDto>();
@@ -53,46 +55,57 @@ public class GetCliCommand
             var saveDir = DownloadPath is not null
                 ? Path.GetFullPath(DownloadPath)
                 : Directory.GetCurrentDirectory();
-            var savePath = Path.Combine(saveDir, fileName);
+            var saveFilePath = Path.Combine(saveDir, fileName);
 
             var contentLength = response.Content.Headers.ContentLength;
             await using var contentStream = await response.Content.ReadAsStreamAsync();
-            await using var fileStream = File.Create(savePath);
-
-            if (contentLength.HasValue)
+            await using (var fileStream = File.Create(saveFilePath))
             {
-                await AnsiConsole.Progress()
-                    .Columns(
-                        new TaskDescriptionColumn(),
-                        new ProgressBarColumn(),
-                        new PercentageColumn(),
-                        new TransferSpeedColumn(),
-                        new RemainingTimeColumn())
-                    .StartAsync(async ctx =>
-                    {
-                        var downloadTask = ctx.AddTask(
-                            $"Downloading [bold]{Markup.Escape(fileName)}[/]",
-                            maxValue: contentLength.Value);
-
-                        var buffer = new byte[81920];
-                        int bytesRead;
-                        while ((bytesRead = await contentStream.ReadAsync(buffer)) > 0)
+                if (contentLength.HasValue)
+                {
+                    await AnsiConsole.Progress()
+                        .Columns(
+                            new TaskDescriptionColumn(),
+                            new ProgressBarColumn(),
+                            new PercentageColumn(),
+                            new TransferSpeedColumn(),
+                            new RemainingTimeColumn())
+                        .StartAsync(async ctx =>
                         {
-                            await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead));
-                            downloadTask.Increment(bytesRead);
-                        }
-                    });
+                            var downloadTask = ctx.AddTask(
+                                $"Downloading [bold]{Markup.Escape(fileName)}[/]",
+                                maxValue: contentLength.Value);
+
+                            var buffer = new byte[81920];
+                            int bytesRead;
+                            while ((bytesRead = await contentStream.ReadAsync(buffer)) > 0)
+                            {
+                                await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead));
+                                downloadTask.Increment(bytesRead);
+                            }
+                        });
+                }
+                else
+                {
+                    await AnsiConsole.Status()
+                        .Spinner(Spinner.Known.Dots)
+                        .SpinnerStyle(new Style(Color.DodgerBlue1))
+                        .StartAsync($"Downloading {Markup.Escape(fileName)}...",
+                            async _ => { await contentStream.CopyToAsync(fileStream); });
+                }
+            }
+
+            // If it was a folder that was downloaded, extract it
+            if (response.Headers.TryGetValues("X-PLUCK-IS-DIRECTORY", out _) && fileName.EndsWith(".zip"))
+            {
+                await ZipFile.ExtractToDirectoryAsync(saveFilePath, saveDir, overwriteFiles: true);
+                File.Delete(saveFilePath);
+                SpectreOutput.Success($"Saved to {saveDir}");
             }
             else
             {
-                await AnsiConsole.Status()
-                    .Spinner(Spinner.Known.Dots)
-                    .SpinnerStyle(new Style(Color.DodgerBlue1))
-                    .StartAsync($"Downloading {Markup.Escape(fileName)}...",
-                        async _ => { await contentStream.CopyToAsync(fileStream); });
+                SpectreOutput.Success($"Saved to {saveFilePath}");
             }
-
-            SpectreOutput.Success($"Saved to {savePath}");
         }
         catch (Exception e)
         {
