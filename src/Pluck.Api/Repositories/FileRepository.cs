@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Pluck.Api.Persistence;
 using Pluck.Api.Utils;
 using Pluck.Shared.Dtos.Files;
+using Pluck.Shared.Models;
 using File = Pluck.Shared.Models.File;
 
 namespace Pluck.Api.Repositories;
@@ -12,9 +13,18 @@ public class FileRepository(AppDbContext db)
     {
         var token = Utilities.GenerateId(6);
         var fileExpiryDate = DateTime.UtcNow.AddHours(fileDto.Ttl);
-        var fileEntry = File.Create(token, fileDto.OwnerId, fileDto.DiskFileName, fileDto.OriginalFileName,
-            fileDto.ContentType,
-            fileDto.MaxDownloads, fileExpiryDate, fileDto.IsDirectory);
+        var fileEntry = File.Create(new FileParams
+        {
+            Token = token,
+            OwnerId = fileDto.OwnerId,
+            DiskFileName = fileDto.DiskFileName,
+            OriginalFileName = fileDto.OriginalFileName,
+            ContentType = fileDto.ContentType,
+            DownloadsLeft = fileDto.MaxDownloads,
+            ExpiresAt = fileExpiryDate,
+            IsDirectory = fileDto.IsDirectory,
+            PasswordHash = fileDto.PasswordHash
+        });
         db.Files.Add(fileEntry);
         await db.SaveChangesAsync();
         return fileEntry;

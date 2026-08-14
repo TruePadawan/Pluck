@@ -45,7 +45,9 @@ public static class UploadEndpoints
                         [FromHeader(Name = "X-PLUCK-MAX-DOWNLOADS")]
                         int? fileMaxDownloads = null,
                         [FromHeader(Name = "X-PLUCK-IS-DIRECTORY")]
-                        bool isDirectory = false) =>
+                        bool isDirectory = false,
+                        [FromHeader(Name = "X-PLUCK-PASSWORD")]
+                        string? filePassword = null) =>
                     {
                         if (context.Items["User"] is not User user)
                         {
@@ -103,9 +105,12 @@ public static class UploadEndpoints
                                 }
 
                                 var fileContentType = fileSection.ContentType ?? "application/octet-stream";
+                                var passwordHash = filePassword is not null
+                                    ? PasswordHasher.Hash(filePassword)
+                                    : null;
                                 var fileDto = new CreateFileDto(user.Id, diskFileName, originalFileName,
                                     fileContentType,
-                                    fileTtlInHours, fileMaxDownloads, isDirectory);
+                                    fileTtlInHours, fileMaxDownloads, isDirectory, passwordHash);
                                 // Save the file entry in the database
                                 var file = await fileRepository.CreateFile(fileDto);
 

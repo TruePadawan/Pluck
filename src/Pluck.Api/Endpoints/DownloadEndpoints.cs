@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using Pluck.Api.Repositories;
 using Pluck.Api.Security;
@@ -28,8 +29,11 @@ public static class DownloadEndpoints
         private void MapDownloadFile()
         {
             app.MapGet("/f/{token}",
-                    async Task<Results<NotFound<ErrorResponseDto>, FileStreamHttpResult>> (string token,
-                        FileRepository fileRepository, IOptions<PluckApiOptions> apiOptions, HttpContext context) =>
+                    async Task<Results<NotFound<ErrorResponseDto>, UnauthorizedHttpResult, FileStreamHttpResult>> (
+                        string token,
+                        FileRepository fileRepository, IOptions<PluckApiOptions> apiOptions, HttpContext context,
+                        [FromHeader(Name = "X-PLUCK-PASSWORD")]
+                        string? providedPassword = null) =>
                     {
                         var file = await fileRepository.GetFileByToken(token);
                         if (file is null)
@@ -41,6 +45,21 @@ public static class DownloadEndpoints
                         if (!file.IsDownloadable(config.UploadDirectory))
                         {
                             return TypedResults.NotFound(new ErrorResponseDto("File not found"));
+                        }
+
+                        // Password check happens before decrementing downloads
+                        if (file.IsPasswordProtected)
+                        {
+                            if (providedPassword is null)
+                            {
+                                context.Response.Headers.Append("X-PLUCK-PASSWORD-REQUIRED", "true");
+                                return TypedResults.Unauthorized();
+                            }
+
+                            if (!PasswordHasher.Verify(providedPassword, file.PasswordHash!))
+                            {
+                                return TypedResults.Unauthorized();
+                            }
                         }
 
                         await fileRepository.DecrementDownloadsLeft(file);
@@ -64,6 +83,7 @@ public static class DownloadEndpoints
                     Streams the uploaded file to the client.
                     It returns 404 if the file is not found or is not downloadable.
                     A file is not downloadable if it has expired or if the download limit has been reached.
+                    It returns 401 if the file is password protected and the password is missing or incorrect.
                     """);
         }
     }
