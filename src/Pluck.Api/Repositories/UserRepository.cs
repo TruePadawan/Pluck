@@ -14,7 +14,12 @@ public class UserRepository(AppDbContext db)
 
     public async Task<User> CreateUser(CreateUserDto userDto)
     {
-        var user = User.Create(userDto.Name, userDto.ApiKeyHash, userDto.Role);
+        var user = User.Create(new UserParams
+        {
+            Name = userDto.Name,
+            ApiKeyHash = userDto.ApiKeyHash,
+            Role = userDto.Role
+        });
         db.Users.Add(user);
         await db.SaveChangesAsync();
         return user;

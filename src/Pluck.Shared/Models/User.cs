@@ -16,37 +16,37 @@ public sealed class User : EntityBase
         Files = [];
     }
 
-    private User(string name, string apiKeyHash, string role)
+    private User(UserParams p)
     {
-        Name = name;
-        ApiKeyHash = apiKeyHash;
-        Role = role;
+        Name = p.Name;
+        ApiKeyHash = p.ApiKeyHash;
+        Role = p.Role;
         Files = [];
     }
 
-    public static User Create(string name, string apiKeyHash, string role)
+    public static User Create(UserParams p)
     {
-        ValidateInputs(name, apiKeyHash, role);
-        return new User(name.ToLowerInvariant(), apiKeyHash, role);
+        ValidateInputs(p);
+        return new User(p with { Name = p.Name.ToLowerInvariant() });
     }
 
-    public void Update(string name, string apiKeyHash, string role)
+    public void Update(UserParams p)
     {
-        ValidateInputs(name, apiKeyHash, role);
-        Name = name;
-        ApiKeyHash = apiKeyHash;
-        Role = role;
+        ValidateInputs(p);
+        Name = p.Name;
+        ApiKeyHash = p.ApiKeyHash;
+        Role = p.Role;
 
         UpdateLastModified();
     }
 
-    private static void ValidateInputs(string name, string apiKeyHash, string role)
+    private static void ValidateInputs(UserParams p)
     {
-        if (string.IsNullOrWhiteSpace(name))
-            throw new ArgumentException("Name cannot be null or empty", nameof(name));
-        if (string.IsNullOrWhiteSpace(apiKeyHash))
-            throw new ArgumentException("API key hash cannot be null or empty", nameof(apiKeyHash));
-        if (string.IsNullOrWhiteSpace(role))
-            throw new ArgumentException("Role cannot be null or empty", nameof(role));
+        if (string.IsNullOrWhiteSpace(p.Name))
+            throw new ArgumentException("Name cannot be null or empty", nameof(p.Name));
+        if (string.IsNullOrWhiteSpace(p.ApiKeyHash))
+            throw new ArgumentException("API key hash cannot be null or empty", nameof(p.ApiKeyHash));
+        if (string.IsNullOrWhiteSpace(p.Role))
+            throw new ArgumentException("Role cannot be null or empty", nameof(p.Role));
     }
 }
