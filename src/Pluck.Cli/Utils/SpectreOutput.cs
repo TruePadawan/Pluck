@@ -42,26 +42,39 @@ public static class SpectreOutput
     /// </summary>
     public static void FileDetail(FileResponseDto file)
     {
-        var grid = new Grid();
-        grid.AddColumn(new GridColumn().PadRight(2));
-        grid.AddColumn();
+        var detailsGrid = new Grid();
+        detailsGrid.AddColumn(new GridColumn().PadRight(2));
+        detailsGrid.AddColumn();
 
-        grid.AddRow("[bold]Token[/]", Markup.Escape(file.Token));
-        grid.AddRow("[bold]Name[/]", Markup.Escape(file.OriginalFileName));
-        grid.AddRow("[bold]Downloads Left[/]", file.DownloadsLeft?.ToString() ?? "Unlimited");
-        grid.AddRow("[bold]Expires At[/]", Markup.Escape(file.ExpiresAt.ToString("g")));
-        grid.AddRow("[bold]Download URL[/]", Markup.Escape(file.DownloadUrl));
+        detailsGrid.AddRow("[bold]Token[/]", Markup.Escape(file.Token));
+        detailsGrid.AddRow("[bold]Name[/]", Markup.Escape(file.OriginalFileName));
+        detailsGrid.AddRow("[bold]Downloads Left[/]", file.DownloadsLeft?.ToString() ?? "Unlimited");
+        detailsGrid.AddRow("[bold]Expires At[/]", Markup.Escape(file.ExpiresAt.ToString("g")));
+        detailsGrid.AddRow("[bold]Download URL[/]", Markup.Escape(file.DownloadUrl));
         if (file.IsPasswordProtected)
         {
-            grid.AddRow("[bold]Protected[/]", "[yellow]Password Protected[/]");
+            detailsGrid.AddRow("[bold]Protected[/]", "[yellow]Password Protected[/]");
         }
 
-        var panel = new Panel(grid)
+        var fileDetailsPanel = new Panel(detailsGrid)
             .Header("[bold dodgerblue1]File Details[/]")
             .Border(BoxBorder.Rounded)
             .BorderStyle(new Style(Color.DodgerBlue1));
 
-        AnsiConsole.Write(panel);
+        var qrCodeMarkup = Utilities.GetQrCodeMarkup(file.DownloadUrl);
+        var qrCodePanel = new Panel(qrCodeMarkup)
+            .Header("[bold dodgerblue1]QR Code[/]")
+            .Padding(0, 0, 0, 0)
+            .Border(BoxBorder.Rounded)
+            .BorderStyle(new Style(Color.DodgerBlue1));
+
+        // Use a Grid so columns auto-size to content width
+        var outerGrid = new Grid();
+        outerGrid.AddColumn(new GridColumn().NoWrap().PadRight(1));
+        outerGrid.AddColumn(new GridColumn().NoWrap());
+        outerGrid.AddRow(fileDetailsPanel, qrCodePanel);
+
+        AnsiConsole.Write(outerGrid);
     }
 
     // File Table
