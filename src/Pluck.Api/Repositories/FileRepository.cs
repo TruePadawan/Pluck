@@ -65,4 +65,16 @@ public class FileRepository(AppDbContext db)
         return await db.Files.Where(f => (f.DownloadsLeft == null || f.DownloadsLeft > 0)
                                          && f.ExpiresAt > DateTime.UtcNow).ToListAsync();
     }
+
+    /// <summary>
+    /// Deletes a file specified by the passed token
+    /// </summary>
+    /// <param name="token"></param>
+    public async Task DeleteFileByToken(string token)
+    {
+        var file = await db.Files.SingleOrDefaultAsync(f => f.Token == token);
+        if (file is null) return;
+        db.Files.Remove(file);
+        await db.SaveChangesAsync();
+    }
 }

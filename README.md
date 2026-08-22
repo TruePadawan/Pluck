@@ -19,7 +19,9 @@ file upload/download progress tracking, and clipboard integration.
     - [pluck get](#pluck-get)
     - [pluck list](#pluck-list)
     - [pluck file](#pluck-file)
+    - [pluck purge](#pluck-purge)
     - [pluck key-gen](#pluck-key-gen)
+    - [pluck users](#pluck-users-admin-only)
     - [pluck create-user](#pluck-create-user-admin-only)
     - [pluck revoke-user](#pluck-revoke-user-admin-only)
 - [Self-Hosting Pluck API](#self-hosting-pluck-api)
@@ -167,6 +169,20 @@ pluck file <token>
 
 ---
 
+### `pluck purge`
+
+Deletes a file from the Pluck instance ahead of expiration.
+
+```bash
+pluck purge <token>
+```
+
+**Arguments:**
+
+- `<token>` *(Required)*: The unique token identifier of the file to delete.
+
+---
+
 ### `pluck key-gen`
 
 Generates a random 32-character API key using GUID formatting and copies it directly to your system clipboard. Useful
@@ -174,6 +190,16 @@ for creating initial admin keys or new user credentials.
 
 ```bash
 pluck key-gen
+```
+
+---
+
+### `pluck users` *(Admin Only)*
+
+Lists all registered users on the Pluck instance.
+
+```bash
+pluck users
 ```
 
 ---

@@ -24,6 +24,7 @@ public static class FileEndpoints
         {
             app.MapGetFile();
             app.MapGetFiles();
+            app.MapDeleteFile();
         }
 
         /// <summary>
@@ -116,6 +117,42 @@ public static class FileEndpoints
                                  It returns 401 if not authenticated or if the file is not owned by the authenticated user,
                                  or 404 if the file is not found.
                                  """);
+        }
+
+        /// <summary>
+        /// Deletes the file with the given token ahead of expiration
+        /// </summary>
+        private void MapDeleteFile()
+        {
+            var builder = GetRouteBuilder(app);
+            builder.MapDelete("{token}",
+                    async Task<Results<UnauthorizedHttpResult, NotFound<ErrorResponseDto>, NoContent>> (string token,
+                        HttpContext context,
+                        FileRepository fileRepository) =>
+                    {
+                        if (context.Items["User"] is not User user)
+                        {
+                            return TypedResults.Unauthorized();
+                        }
+
+                        var file = await fileRepository.GetFileByToken(token);
+                        if (file is null)
+                        {
+                            return TypedResults.NotFound(
+                                new ErrorResponseDto("Could not find file with specified token"));
+                        }
+
+                        if (user.Role == "Admin" || file.OwnerId == user.Id)
+                        {
+                            await fileRepository.DeleteFileByToken(token);
+                        }
+
+                        return TypedResults.NoContent();
+                    })
+                .WithApiVersionSet(Utilities.GetApiVersionSet(app))
+                .MapToApiVersion(1, 0)
+                .WithName("DeleteFile")
+                .WithSummary("Deletes the file with the given token ahead of expiration");
         }
     }
 }
