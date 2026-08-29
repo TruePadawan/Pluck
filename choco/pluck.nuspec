@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
+  <metadata>
+    <id>pluck-cli</id>
+    <version>0.1.0</version>
+    <title>Pluck CLI</title>
+    <authors>TruePadawan</authors>
+    <owners>TruePadawan</owners>
+    <projectUrl>https://github.com/TruePadawan/Pluck</projectUrl>
+    <licenseUrl>https://github.com/TruePadawan/Pluck/blob/master/src/Pluck.Cli/LICENSE</licenseUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <projectSourceUrl>https://github.com/TruePadawan/Pluck</projectSourceUrl>
+    <bugTrackerUrl>https://github.com/TruePadawan/Pluck/issues</bugTrackerUrl>
+    <tags>pluck cli file-sharing ephemeral self-hosted upload download</tags>
+    <summary>CLI client for the Pluck ephemeral file-sharing platform</summary>
+    <description>
+Pluck CLI is a feature-rich command-line client for the Pluck self-hosted ephemeral file-sharing platform.
+
+Features:
+- Upload and share files with automatic expiry (TTL) and download limits
+- Real-time upload/download progress tracking with Spectre.Console UI
+- Automatic clipboard integration for generated download URLs
+- Password-protected file sharing
+- User management (admin) commands
+- API key generation
+
+Requires a self-hosted Pluck API instance. See the project README for setup instructions.
+    </description>
+    <releaseNotes>https://github.com/TruePadawan/Pluck/releases</releaseNotes>
+  </metadata>
+  <files>
+    <file src="tools\**" target="tools" />
+  </files>
+</package>

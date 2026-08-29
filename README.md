@@ -61,12 +61,12 @@ Run the official installation script in your terminal to automatically detect yo
 curl -fsSL https://raw.githubusercontent.com/TruePadawan/Pluck/master/install.sh | sh
 ```
 
-### Windows (Planned, Not yet available)
+### Windows
 
-Install natively via Windows Package Manager (WinGet):
+Install via [Chocolatey](https://chocolatey.org/):
 
 ```cmd
-winget install pluck.cli
+choco install pluck-cli
 ```
 
 ### Manual Download (GitHub Releases)

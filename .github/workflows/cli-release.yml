@@ -90,3 +90,56 @@ jobs:
 
           # Update package manifest and submit PR to winget-pkgs
           .\wingetcreate.exe update $packageId --version $version --urls "$installerUrl" --submit --token $gitToken
+
+  publish-chocolatey:
+    name: Publish to Chocolatey
+    needs: release-cli
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract Tag Version
+        id: get_version
+        shell: pwsh
+        run: |
+          $rawTag = "${{ github.ref_name }}"
+          $version = $rawTag -replace '^cli-v', ''
+          echo "VERSION=$version" >> $env:GITHUB_OUTPUT
+          $tagVersion = $rawTag -replace '^cli-', ''
+          echo "TAG_VERSION=$tagVersion" >> $env:GITHUB_OUTPUT
+
+      - name: Compute installer checksum
+        id: checksum
+        shell: pwsh
+        run: |
+          $tagVersion = "${{ steps.get_version.outputs.TAG_VERSION }}"
+          $url = "https://github.com/TruePadawan/Pluck/releases/download/cli-${tagVersion}/pluck-${tagVersion}-win-x64.exe"
+          Invoke-WebRequest $url -OutFile pluck.exe
+          $hash = (Get-FileHash pluck.exe -Algorithm SHA256).Hash
+          echo "SHA256=$hash" >> $env:GITHUB_OUTPUT
+          Remove-Item pluck.exe
+
+      - name: Pack and Push Chocolatey package
+        shell: pwsh
+        env:
+          CHOCOLATEY_API_KEY: ${{ secrets.CHOCOLATEY_API_KEY }}
+        run: |
+          $version = "${{ steps.get_version.outputs.VERSION }}"
+          $checksum = "${{ steps.checksum.outputs.SHA256 }}"
+
+          # Stamp version into nuspec
+          $nuspecPath = "choco/pluck.nuspec"
+          (Get-Content $nuspecPath) -replace '<version>.*</version>', "<version>$version</version>" | Set-Content $nuspecPath
+
+          # Stamp checksum into install script
+          $installScript = "choco/tools/chocolateyinstall.ps1"
+          (Get-Content $installScript) -replace '__CHECKSUM__', $checksum | Set-Content $installScript
+
+          # Pack
+          choco pack $nuspecPath --output-directory choco
+
+          # Push
+          $nupkg = Get-ChildItem choco/*.nupkg | Select-Object -First 1
+          choco push $nupkg.FullName --api-key $env:CHOCOLATEY_API_KEY --source https://push.chocolatey.org/
