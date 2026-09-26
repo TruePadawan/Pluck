@@ -27,9 +27,6 @@ jobs:
           RAW_TAG="${GITHUB_REF#refs/tags/}"
           VERSION="${RAW_TAG#cli-}"
           echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
-          # Strip the 'v' prefix for winget (e.g., v0.1.0 -> 0.1.0)
-          WINGET_VERSION="${VERSION#v}"
-          echo "WINGET_VERSION=${WINGET_VERSION}" >> $GITHUB_OUTPUT
 
       - name: Build Binaries
         run: |
@@ -60,36 +57,6 @@ jobs:
           draft: false
           prerelease: false
 
-  update-winget:
-    name: Submit Update to WinGet
-    needs: release-cli
-    runs-on: windows-latest
-
-    steps:
-      - name: Extract Tag Version
-        id: get_version
-        shell: pwsh
-        run: |
-          $rawTag = "${{ github.ref_name }}"
-          $version = $rawTag -replace '^cli-v', ''
-          echo "VERSION=$version" >> $env:GITHUB_OUTPUT
-          $tagVersion = $rawTag -replace '^cli-', ''
-          echo "TAG_VERSION=$tagVersion" >> $env:GITHUB_OUTPUT
-
-      - name: Submit package to Windows Package Manager Community Repository
-        shell: pwsh
-        run: |
-          $packageId = "pluck.cli"
-          $version = "${{ steps.get_version.outputs.VERSION }}"
-          $tagVersion = "${{ steps.get_version.outputs.TAG_VERSION }}"
-          $installerUrl = "https://github.com/TruePadawan/Pluck/releases/download/cli-${tagVersion}/pluck-${tagVersion}-win-x64.exe"
-          $gitToken = "${{ secrets.WINGET_TOKEN }}"
-
-          # Download wingetcreate
-          Invoke-WebRequest https://aka.ms/wingetcreate/latest -OutFile wingetcreate.exe
-
-          # Update package manifest and submit PR to winget-pkgs
-          .\wingetcreate.exe update $packageId --version $version --urls "$installerUrl" --submit --token $gitToken
 
   publish-chocolatey:
     name: Publish to Chocolatey
