@@ -1,0 +1,58 @@
+services:
+  # Nginx Reverse Proxy
+  # This is the only service exposed to the internet.
+  # It terminates TLS and forwards requests to the Pluck API
+  # over the internal Docker network (no public exposure of Kestrel).
+  nginx:
+    image: nginx:alpine
+    container_name: pluck-nginx
+    restart: unless-stopped
+    ports:
+      # Port 80: HTTP is redirected to HTTPS by the Nginx config
+      # Port 443: HTTPS is proxied to pluck.api:8080 internally
+      - "80:80"
+      - "443:443"
+    volumes:
+      # Mount Nginx config file into the container
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+
+      # Mount TLS certificate and private key.
+      # Place fullchain.pem and privkey.pem in the ./certs/ directory.
+      # If using Let's Encrypt, these are typically found at:
+      #   /etc/letsencrypt/live/YOUR_DOMAIN/fullchain.pem
+      #   /etc/letsencrypt/live/YOUR_DOMAIN/privkey.pem
+      - ./certs:/etc/nginx/ssl:ro
+    depends_on:
+      - pluck.api
+    # Both services must be on the same Docker network so Nginx can
+    # reach the API using the service name "pluck.api" as the hostname.
+    networks:
+      - pluck-net
+
+  # Pluck API
+  # The API is NOT exposed to the host
+  pluck.api:
+    image: ghcr.io/truepadawan/pluck-api:latest
+    container_name: pluck-api
+    restart: unless-stopped
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_HTTP_PORTS=8080
+      # Required Pluck API configuration:
+      - PluckApi__AdminKey=YOUR_SECURE_ADMIN_KEY_HERE
+      - PluckApi__UploadDirectory=/app/pluck/uploads
+      - ConnectionStrings__DefaultConnection=Data Source=/app/pluck/pluck.db;
+      # Tell ASP.NET Core to trust the forwarded headers from Nginx.
+      # Without this, the app would see all requests as coming from
+      # Nginx's internal IP instead of the real client IP.
+      - ASPNETCORE_FORWARDEDHEADERS_ENABLED=true
+    volumes:
+      - ./pluck:/app/pluck
+    networks:
+      - pluck-net
+
+# Docker Network
+# A dedicated bridge network that connects Nginx and the Pluck API.
+networks:
+  pluck-net:
+    driver: bridge

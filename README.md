@@ -28,6 +28,7 @@ file upload/download progress tracking, and clipboard integration.
     - [compose.yaml](#composeyaml)
     - [Environment Variables](#environment-variables)
     - [Starting the Server](#starting-the-server)
+    - [Production Deployment (with TLS)](#production-deployment-with-tls)
 - [License](#license)
 
 ---
@@ -285,6 +286,62 @@ Connect your CLI client to the self-hosted instance:
 ```bash
 pluck config --server http://YOUR_SERVER_IP:8080 --key YOUR_SECURE_ADMIN_KEY
 ```
+
+### Production Deployment (with TLS)
+
+For production use, the Pluck API should be placed behind a reverse proxy that handles TLS termination, rate limiting,
+and upload buffering. A ready-to-use Nginx configuration is included in the repository.
+
+#### 1. Obtain TLS Certificates
+
+Use [Let's Encrypt](https://letsencrypt.org/) with [certbot](https://certbot.eff.org/) to get free TLS certificates:
+
+```bash
+sudo certbot certonly --standalone -d YOUR_DOMAIN
+```
+
+Then copy the generated certificates into a `certs/` directory in the project root:
+
+```bash
+mkdir -p certs
+sudo cp /etc/letsencrypt/live/YOUR_DOMAIN/fullchain.pem ./certs/
+sudo cp /etc/letsencrypt/live/YOUR_DOMAIN/privkey.pem ./certs/
+```
+
+#### 2. Update the Nginx Config
+
+Open `nginx/nginx.conf` and replace `server_name _` with your domain:
+
+```nginx
+server_name yourdomain.com;
+```
+
+#### 3. Start the Production Stack
+
+```bash
+docker compose -f compose.prod.yaml up -d
+```
+
+This starts both the Nginx reverse proxy and the Pluck API. The API is **not** exposed to the
+host — only Nginx is accessible on ports 80 (HTTP → HTTPS redirect) and 443 (HTTPS).
+
+#### 4. Connect the CLI
+
+```bash
+pluck config --server https://YOUR_DOMAIN --key YOUR_SECURE_ADMIN_KEY
+```
+
+#### What the Reverse Proxy Provides
+
+- **TLS Termination**: Encrypts all traffic (API keys, passwords, file data) in transit using
+  TLS 1.2/1.3. The API itself only handles plain HTTP on the isolated Docker network.
+- **Rate Limiting**: The public download endpoint (`/f/`) is rate-limited to 5 requests/second
+  per IP with a burst allowance of 10, preventing download abuse.
+- **Upload Buffering**: Large file uploads (up to 10GB) are streamed directly to the API without
+  Nginx buffering the entire file in memory.
+- **HTTP → HTTPS Redirect**: All HTTP requests on port 80 are automatically redirected to HTTPS.
+
+---
 
 ## License
 
