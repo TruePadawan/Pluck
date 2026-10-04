@@ -164,47 +164,47 @@ public class ShareCliCommand
             // We only enter this validation/reprompt flow because the user explicitly used the --token flag
             while (!tokenIsUniqueAndValid)
             {
-                // 1. If finalToken is null (because a previous iteration failed validation), reprompt the user
+                // If finalToken is null (because a previous iteration failed validation), reprompt the user
                 if (finalToken == null)
                 {
                     finalToken = AnsiConsole.Ask<string>(
                         "Please enter a valid token or leave it blank to generate a random one: ", "");
                 }
 
-                // 2. If they left it blank during a reprompt, they opted out of a custom token. Break the loop.
+                // If they left it blank during a reprompt, they opted out of a custom token. Break the loop.
                 if (string.IsNullOrWhiteSpace(finalToken))
                 {
                     finalToken = null;
                     break;
                 }
 
-                // 3. Sanitize and validate locally
+                // Sanitize and validate locally
                 var (sanitizedToken, isValid, errorMessage) = TokenSanitizer.Sanitize(finalToken);
 
                 if (!isValid)
                 {
                     Console.WriteLine($"[Error]: {errorMessage}");
-                    finalToken = null; // Clear it so the loop reprompts
+                    finalToken = null;
                     continue;
                 }
 
-                // 4. Validate uniqueness on the server
+                // Validate uniqueness on the server
                 var response = await PluckHttpClient.GetAsync($"/api/files/{sanitizedToken}");
                 var tokenIsTaken = response.IsSuccessStatusCode || response.StatusCode == HttpStatusCode.Unauthorized;
 
                 if (tokenIsTaken)
                 {
                     Console.WriteLine($"[Error]: The token '{sanitizedToken}' is already taken on this server.");
-                    finalToken = null; // Clear it so the loop reprompts
+                    finalToken = null;
                     continue;
                 }
 
-                // If we reach here, the token is both valid and unique!
+                // If we reach here, the token is both valid and unique
                 finalToken = sanitizedToken;
                 tokenIsUniqueAndValid = true;
             }
 
-            // Attach the token to the upload request if they didn't bail out
+            // Attach the token to the upload request
             if (!string.IsNullOrEmpty(finalToken))
             {
                 PluckHttpClient.DefaultRequestHeaders.Add("X-PLUCK-TOKEN", finalToken);
