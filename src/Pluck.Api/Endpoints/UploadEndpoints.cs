@@ -8,6 +8,7 @@ using Pluck.Api.Security;
 using Pluck.Api.Utils;
 using Pluck.Shared.Dtos;
 using Pluck.Shared.Dtos.Files;
+using Pluck.Shared.Lib;
 using Pluck.Shared.Models;
 using File = System.IO.File;
 using MediaTypeHeaderValue = System.Net.Http.Headers.MediaTypeHeaderValue;
@@ -47,7 +48,8 @@ public static class UploadEndpoints
                         [FromHeader(Name = "X-PLUCK-IS-DIRECTORY")]
                         bool isDirectory = false,
                         [FromHeader(Name = "X-PLUCK-PASSWORD")]
-                        string? filePassword = null) =>
+                        string? filePassword = null,
+                        [FromHeader(Name = "X-PLUCK-TOKEN")] string? fileToken = null) =>
                     {
                         if (context.Items["User"] is not User user)
                         {
@@ -88,7 +90,7 @@ public static class UploadEndpoints
                                 !string.IsNullOrEmpty(contentDisposition.FileName.Value))
                             {
                                 var originalFileName = Path.GetFileName(contentDisposition.FileName.Value);
-                                var diskFileName = Utilities.GenerateId(8) + ".dat";
+                                var diskFileName = SharedUtilities.GenerateId(8) + ".dat";
                                 var uploadDirectory = apiOptions.Value.UploadDirectory;
                                 if (string.IsNullOrEmpty(uploadDirectory))
                                 {
@@ -108,7 +110,10 @@ public static class UploadEndpoints
                                 var passwordHash = filePassword is not null
                                     ? PasswordHasher.Hash(filePassword)
                                     : null;
-                                var fileDto = new CreateFileDto(user.Id, diskFileName, originalFileName,
+                                // Sanitize fileToken, use a random string if not provided or token is invalid
+                                var (sanitizedToken, _, _) = TokenSanitizer.Sanitize(fileToken);
+                                var fileDto = new CreateFileDto(user.Id, sanitizedToken, diskFileName,
+                                    originalFileName,
                                     fileContentType,
                                     fileTtlInHours, fileMaxDownloads, isDirectory, passwordHash);
                                 // Save the file entry in the database

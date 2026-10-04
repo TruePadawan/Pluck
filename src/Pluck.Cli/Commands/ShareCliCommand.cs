@@ -9,6 +9,7 @@ using Pluck.Cli.Config;
 using Pluck.Cli.Utils;
 using Pluck.Shared.Dtos;
 using Pluck.Shared.Dtos.Files;
+using Pluck.Shared.Lib;
 using Spectre.Console;
 
 namespace Pluck.Cli.Commands;
@@ -26,6 +27,9 @@ public class ShareCliCommand
     [CliOption(Name = "pwd", Description = "Password to protect the file/folder", Required = false)]
     public string? Password { get; set; }
 
+    [CliOption(Name = "token", Description = "Token to be used instead of randomly generated token", Required = false)]
+    public string? Token { get; set; }
+
     [CliArgument(Name = "path", Description = "The path to the file/folder to upload")]
     public required string ItemPath { get; set; }
 
@@ -40,6 +44,44 @@ public class ShareCliCommand
 
             PluckHttpClient.BaseAddress = new Uri(pluckConfig.ServerUrl);
             PluckHttpClient.DefaultRequestHeaders.Add("X-PLUCK-API-KEY", pluckConfig.ApiUrl);
+            // If a custom token was specified, check that it is unique and valid
+            if (Token is not null)
+            {
+                var (sanitizedToken, tokenIsValid, errorMessage) = TokenSanitizer.Sanitize(Token);
+                while (!tokenIsValid)
+                {
+                    Console.WriteLine(errorMessage);
+                    var input = AnsiConsole.Ask<string>(
+                        "Please enter a valid token or leave it blank to generate a random one:", "");
+                    if (string.IsNullOrEmpty(input))
+                    {
+                        sanitizedToken = "";
+                        break;
+                    }
+
+                    var (sanitizedInput, inputIsValid, message) = TokenSanitizer.Sanitize(input);
+                    errorMessage = message;
+                    if (inputIsValid)
+                    {
+                        sanitizedToken = sanitizedInput;
+                        tokenIsValid = true;
+                    }
+                }
+
+                if (!string.IsNullOrEmpty(sanitizedToken))
+                {
+                    var response = await PluckHttpClient.GetAsync($"/api/files/{sanitizedToken}");
+                    var tokenIsTaken = response.IsSuccessStatusCode ||
+                                       response.StatusCode == HttpStatusCode.Unauthorized;
+                    if (tokenIsTaken)
+                    {
+                        sanitizedToken = sanitizedToken + "-" + SharedUtilities.GenerateId(8);
+                    }
+
+                    PluckHttpClient.DefaultRequestHeaders.Add("X-PLUCK-TOKEN", sanitizedToken);
+                }
+            }
+
             PluckHttpClient.DefaultRequestHeaders.Add("X-PLUCK-TTL", Ttl.ToString(CultureInfo.InvariantCulture));
             if (Downloads.HasValue)
             {
