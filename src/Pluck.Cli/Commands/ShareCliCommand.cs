@@ -9,6 +9,7 @@ using Pluck.Cli.Config;
 using Pluck.Cli.Utils;
 using Pluck.Shared.Dtos;
 using Pluck.Shared.Dtos.Files;
+using Pluck.Shared.Lib;
 using Spectre.Console;
 
 namespace Pluck.Cli.Commands;
@@ -26,6 +27,9 @@ public class ShareCliCommand
     [CliOption(Name = "pwd", Description = "Password to protect the file/folder", Required = false)]
     public string? Password { get; set; }
 
+    [CliOption(Name = "token", Description = "Token to be used instead of randomly generated token", Required = false)]
+    public string? Token { get; set; }
+
     [CliArgument(Name = "path", Description = "The path to the file/folder to upload")]
     public required string ItemPath { get; set; }
 
@@ -40,6 +44,9 @@ public class ShareCliCommand
 
             PluckHttpClient.BaseAddress = new Uri(pluckConfig.ServerUrl);
             PluckHttpClient.DefaultRequestHeaders.Add("X-PLUCK-API-KEY", pluckConfig.ApiUrl);
+            // If a custom token was specified, check that it is unique and valid
+            await ValidateCustomToken();
+
             PluckHttpClient.DefaultRequestHeaders.Add("X-PLUCK-TTL", Ttl.ToString(CultureInfo.InvariantCulture));
             if (Downloads.HasValue)
             {
@@ -140,6 +147,67 @@ public class ShareCliCommand
             if (tempZipPath is not null && File.Exists(tempZipPath))
             {
                 File.Delete(tempZipPath);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Validates the custom token provided by the user.
+    /// </summary>
+    private async Task ValidateCustomToken()
+    {
+        if (Token is not null)
+        {
+            string? finalToken = Token;
+            bool tokenIsUniqueAndValid = false;
+
+            // We only enter this validation/reprompt flow because the user explicitly used the --token flag
+            while (!tokenIsUniqueAndValid)
+            {
+                // 1. If finalToken is null (because a previous iteration failed validation), reprompt the user
+                if (finalToken == null)
+                {
+                    finalToken = AnsiConsole.Ask<string>(
+                        "Please enter a valid token or leave it blank to generate a random one: ", "");
+                }
+
+                // 2. If they left it blank during a reprompt, they opted out of a custom token. Break the loop.
+                if (string.IsNullOrWhiteSpace(finalToken))
+                {
+                    finalToken = null;
+                    break;
+                }
+
+                // 3. Sanitize and validate locally
+                var (sanitizedToken, isValid, errorMessage) = TokenSanitizer.Sanitize(finalToken);
+
+                if (!isValid)
+                {
+                    Console.WriteLine($"[Error]: {errorMessage}");
+                    finalToken = null; // Clear it so the loop reprompts
+                    continue;
+                }
+
+                // 4. Validate uniqueness on the server
+                var response = await PluckHttpClient.GetAsync($"/api/files/{sanitizedToken}");
+                var tokenIsTaken = response.IsSuccessStatusCode || response.StatusCode == HttpStatusCode.Unauthorized;
+
+                if (tokenIsTaken)
+                {
+                    Console.WriteLine($"[Error]: The token '{sanitizedToken}' is already taken on this server.");
+                    finalToken = null; // Clear it so the loop reprompts
+                    continue;
+                }
+
+                // If we reach here, the token is both valid and unique!
+                finalToken = sanitizedToken;
+                tokenIsUniqueAndValid = true;
+            }
+
+            // Attach the token to the upload request if they didn't bail out
+            if (!string.IsNullOrEmpty(finalToken))
+            {
+                PluckHttpClient.DefaultRequestHeaders.Add("X-PLUCK-TOKEN", finalToken);
             }
         }
     }
