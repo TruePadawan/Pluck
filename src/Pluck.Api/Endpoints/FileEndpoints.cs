@@ -101,7 +101,7 @@ public static class FileEndpoints
                                 new ErrorResponseDto("Could not find file with specified token"));
                         }
 
-                        if (file.OwnerId != user.Id)
+                        if (user.Role != "Admin" && file.OwnerId != user.Id)
                         {
                             return TypedResults.Unauthorized();
                         }
