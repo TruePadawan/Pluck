@@ -1,6 +1,8 @@
+using System.Threading;
+using System.ComponentModel;
 using System.Net;
 using System.Net.Http.Json;
-using DotMake.CommandLine;
+using Spectre.Console.Cli;
 using Pluck.Cli.Config;
 using Pluck.Cli.Utils;
 using Pluck.Shared.Dtos;
@@ -8,28 +10,27 @@ using Spectre.Console;
 
 namespace Pluck.Cli.Commands;
 
-/// <summary>
-/// Defines the config subcommand which points the Pluck CLI to a Pluck Api instance
-/// </summary>
-[CliCommand(Name = "config",
-    Description = "Link the Pluck CLI to a Pluck API instance",
-    Parent = typeof(PluckCliCommand))]
-public class ConfigCliCommand
+public class ConfigCommandSettings : CommandSettings
 {
-    [CliOption(Name = "server", Description = "The URL of the Pluck API instance")]
+    [CommandOption("--server")]
+    [Description("The URL of the Pluck API instance")]
     public required string ServerUrl { get; set; }
 
-    [CliOption(Name = "key", Description = "The API key to use for authentication")]
+    [CommandOption("--key")]
+    [Description("The API key to use for authentication")]
     public required string ApiKey { get; set; }
+}
 
+public class ConfigCommand : AsyncCommand<ConfigCommandSettings>
+{
     private static readonly HttpClient PluckHttpClient = new();
 
-    public async Task RunAsync()
+    public override async Task<int> ExecuteAsync(CommandContext context, ConfigCommandSettings settings, CancellationToken cancellationToken)
     {
         try
         {
-            PluckHttpClient.BaseAddress = new Uri(ServerUrl);
-            PluckHttpClient.DefaultRequestHeaders.Add("X-PLUCK-API-KEY", ApiKey);
+            PluckHttpClient.BaseAddress = new Uri(settings.ServerUrl);
+            PluckHttpClient.DefaultRequestHeaders.Add("X-PLUCK-API-KEY", settings.ApiKey);
 
             PingUserResponseDto? user = null;
 
@@ -50,14 +51,16 @@ public class ConfigCliCommand
                         throw new Exception("Unable to parse user info");
                     }
 
-                    PluckConfigManager.Save(new PluckConfig(ServerUrl, ApiKey));
+                    PluckConfigManager.Save(new PluckConfig(settings.ServerUrl, settings.ApiKey));
                 });
 
             SpectreOutput.Success($"Welcome, {user!.Name}");
+            return 0;
         }
         catch (Exception e)
         {
             SpectreOutput.Error($"Failed to configure Pluck CLI: {e.Message}");
+            return 1;
         }
         finally
         {

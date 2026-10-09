@@ -1,9 +1,11 @@
+using System.Threading;
+using System.ComponentModel;
 using System.Globalization;
 using System.IO.Compression;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
-using DotMake.CommandLine;
+using Spectre.Console.Cli;
 using MimeMapping;
 using Pluck.Cli.Config;
 using Pluck.Cli.Utils;
@@ -14,28 +16,34 @@ using Spectre.Console;
 
 namespace Pluck.Cli.Commands;
 
-[CliCommand(Name = "share", Description = "Uploads a file/folder to the Pluck instance",
-    Parent = typeof(PluckCliCommand))]
-public class ShareCliCommand
+public class ShareCommandSettings : CommandSettings
 {
-    [CliOption(Name = "ttl", Description = "How long the file/folder should exist for in hours")]
+    [CommandOption("--ttl")]
+    [Description("How long the file/folder should exist for in hours")]
     public double Ttl { get; set; } = 24;
 
-    [CliOption(Name = "downloads", Description = "How many downloads the file/folder should allow", Required = false)]
+    [CommandOption("--downloads")]
+    [Description("How many downloads the file/folder should allow")]
     public double? Downloads { get; set; } = null;
 
-    [CliOption(Name = "pwd", Description = "Password to protect the file/folder", Required = false)]
+    [CommandOption("--pwd")]
+    [Description("Password to protect the file/folder")]
     public string? Password { get; set; }
 
-    [CliOption(Name = "token", Description = "Token to be used instead of randomly generated token", Required = false)]
+    [CommandOption("--token")]
+    [Description("Token to be used instead of randomly generated token")]
     public string? Token { get; set; }
 
-    [CliArgument(Name = "path", Description = "The path to the file/folder to upload")]
+    [CommandArgument(0, "<path>")]
+    [Description("The path to the file/folder to upload")]
     public required string ItemPath { get; set; }
+}
 
+public class ShareCommand : AsyncCommand<ShareCommandSettings>
+{
     private static readonly HttpClient PluckHttpClient = new();
 
-    public async Task RunAsync()
+    public override async Task<int> ExecuteAsync(CommandContext context, ShareCommandSettings settings, CancellationToken cancellationToken)
     {
         string? tempZipPath = null;
         try
@@ -45,21 +53,21 @@ public class ShareCliCommand
             PluckHttpClient.BaseAddress = new Uri(pluckConfig.ServerUrl);
             PluckHttpClient.DefaultRequestHeaders.Add("X-PLUCK-API-KEY", pluckConfig.ApiUrl);
             // If a custom token was specified, check that it is unique and valid
-            await ValidateCustomToken();
+            await ValidateCustomToken(settings.Token);
 
-            PluckHttpClient.DefaultRequestHeaders.Add("X-PLUCK-TTL", Ttl.ToString(CultureInfo.InvariantCulture));
-            if (Downloads.HasValue)
+            PluckHttpClient.DefaultRequestHeaders.Add("X-PLUCK-TTL", settings.Ttl.ToString(CultureInfo.InvariantCulture));
+            if (settings.Downloads.HasValue)
             {
                 PluckHttpClient.DefaultRequestHeaders.Add("X-PLUCK-MAX-DOWNLOADS",
-                    Downloads.Value.ToString(CultureInfo.InvariantCulture));
+                    settings.Downloads.Value.ToString(CultureInfo.InvariantCulture));
             }
 
-            if (Password is not null)
+            if (settings.Password is not null)
             {
-                PluckHttpClient.DefaultRequestHeaders.Add("X-PLUCK-PASSWORD", Password);
+                PluckHttpClient.DefaultRequestHeaders.Add("X-PLUCK-PASSWORD", settings.Password);
             }
 
-            var absoluteItemPath = Path.GetFullPath(ItemPath);
+            var absoluteItemPath = Path.GetFullPath(settings.ItemPath);
             if (Directory.Exists(absoluteItemPath))
             {
                 // Zip the folder and extract its info
@@ -135,10 +143,12 @@ public class ShareCliCommand
             }
 
             SpectreOutput.FileDetail(successResponse!);
+            return 0;
         }
         catch (Exception e)
         {
             SpectreOutput.Error($"Failed to upload file: {e.Message}");
+            return 1;
         }
         finally
         {
@@ -154,11 +164,11 @@ public class ShareCliCommand
     /// <summary>
     /// Validates the custom token provided by the user.
     /// </summary>
-    private async Task ValidateCustomToken()
+    private async Task ValidateCustomToken(string? token)
     {
-        if (Token is not null)
+        if (token is not null)
         {
-            string? finalToken = Token;
+            string? finalToken = token;
             bool tokenIsUniqueAndValid = false;
 
             // We only enter this validation/reprompt flow because the user explicitly used the --token flag

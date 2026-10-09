@@ -1,6 +1,8 @@
+using System.Threading;
+using System.ComponentModel;
 using System.Net;
 using System.Net.Http.Json;
-using DotMake.CommandLine;
+using Spectre.Console.Cli;
 using Pluck.Cli.Config;
 using Pluck.Cli.Utils;
 using Pluck.Shared.Dtos;
@@ -8,16 +10,18 @@ using Spectre.Console;
 
 namespace Pluck.Cli.Commands;
 
-[CliCommand(Name = "purge", Description = "Deletes a file from the Pluck instance ahead of expiration",
-    Parent = typeof(PluckCliCommand))]
-public class PurgeCliCommand
+public class PurgeCommandSettings : CommandSettings
 {
-    [CliArgument(Name = "token", Description = "The token of the file to delete")]
+    [CommandArgument(0, "<token>")]
+    [Description("The token of the file to delete")]
     public required string Token { get; set; }
+}
 
+public class PurgeCommand : AsyncCommand<PurgeCommandSettings>
+{
     private static readonly HttpClient PluckHttpClient = new();
 
-    public async Task RunAsync()
+    public override async Task<int> ExecuteAsync(CommandContext context, PurgeCommandSettings settings, CancellationToken cancellationToken)
     {
         try
         {
@@ -31,7 +35,7 @@ public class PurgeCliCommand
                 .SpinnerStyle(new Style(Color.DodgerBlue1))
                 .StartAsync("Deleting file...", async _ =>
                 {
-                    var response = await PluckHttpClient.DeleteAsync($"/api/files/{Uri.EscapeDataString(Token)}");
+                    var response = await PluckHttpClient.DeleteAsync($"/api/files/{Uri.EscapeDataString(settings.Token)}");
 
                     if (!response.IsSuccessStatusCode)
                     {
@@ -51,11 +55,13 @@ public class PurgeCliCommand
                     }
                 });
 
-            SpectreOutput.Success($"File '{Token}' has been deleted.");
+            SpectreOutput.Success($"File '{settings.Token}' has been deleted.");
+            return 0;
         }
         catch (Exception e)
         {
             SpectreOutput.Error($"Failed to delete file: {e.Message}");
+            return 1;
         }
         finally
         {

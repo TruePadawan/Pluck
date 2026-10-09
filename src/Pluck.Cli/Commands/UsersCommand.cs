@@ -1,6 +1,8 @@
+using System.Threading;
+using System.ComponentModel;
 using System.Net;
 using System.Net.Http.Json;
-using DotMake.CommandLine;
+using Spectre.Console.Cli;
 using Pluck.Cli.Config;
 using Pluck.Cli.Utils;
 using Pluck.Shared.Dtos;
@@ -9,13 +11,15 @@ using Spectre.Console;
 
 namespace Pluck.Cli.Commands;
 
-[CliCommand(Name = "users", Description = "Lists all the users in the Pluck instance",
-    Parent = typeof(PluckCliCommand))]
-public class UsersCliCommand
+public class UsersCommandSettings : CommandSettings
+{
+}
+
+public class UsersCommand : AsyncCommand<UsersCommandSettings>
 {
     private static readonly HttpClient PluckHttpClient = new();
 
-    public async Task RunAsync()
+    public override async Task<int> ExecuteAsync(CommandContext context, UsersCommandSettings settings, CancellationToken cancellationToken)
     {
         try
         {
@@ -49,10 +53,12 @@ public class UsersCliCommand
             );
 
             SpectreOutput.UserTable(users!);
+            return 0;
         }
         catch (Exception e)
         {
             SpectreOutput.Error($"Failed to list users: {e.Message}");
+            return 1;
         }
         finally
         {
