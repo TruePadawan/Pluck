@@ -1,7 +1,7 @@
-namespace Pluck.Shared.Models;
+namespace Pluck.Shared.Params;
 
 /// <summary>
-/// Parameter object for creating or updating a <see cref="File"/> entity.
+/// Parameter object for creating or updating a <see cref="Models.File"/> entity.
 /// </summary>
 public class FileParams
 {

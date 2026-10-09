@@ -1,3 +1,5 @@
+using Pluck.Shared.Params;
+
 namespace Pluck.Shared.Models;
 
 public sealed class File : EntityBase

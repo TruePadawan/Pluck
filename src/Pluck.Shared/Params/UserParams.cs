@@ -1,4 +1,6 @@
-namespace Pluck.Shared.Models;
+using Pluck.Shared.Models;
+
+namespace Pluck.Shared.Params;
 
 /// <summary>
 /// Parameter object for creating or updating a <see cref="User"/> entity.

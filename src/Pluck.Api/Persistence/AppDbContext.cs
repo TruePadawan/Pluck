@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Pluck.Api.Security;
 using Pluck.Shared.Models;
+using Pluck.Shared.Params;
 using File = Pluck.Shared.Models.File;
 
 namespace Pluck.Api.Persistence;

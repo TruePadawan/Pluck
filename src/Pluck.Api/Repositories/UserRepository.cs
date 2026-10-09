@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Pluck.Api.Persistence;
 using Pluck.Shared.Dtos.Users;
 using Pluck.Shared.Models;
+using Pluck.Shared.Params;
 
 namespace Pluck.Api.Repositories;
 
