@@ -1,7 +1,9 @@
+using System.Threading;
+using System.ComponentModel;
 using System.IO.Compression;
 using System.Net;
 using System.Net.Http.Json;
-using DotMake.CommandLine;
+using Spectre.Console.Cli;
 using Pluck.Cli.Config;
 using Pluck.Cli.Utils;
 using Pluck.Shared.Dtos;
@@ -9,22 +11,26 @@ using Spectre.Console;
 
 namespace Pluck.Cli.Commands;
 
-[CliCommand(Name = "get", Description = "Downloads a file/folder from a Pluck instance",
-    Parent = typeof(PluckCliCommand))]
-public class GetCliCommand
+public class GetCommandSettings : CommandSettings
 {
-    [CliArgument(Name = "url", Description = "The URL of the file/folder to download")]
+    [CommandArgument(0, "<url>")]
+    [Description("The URL of the file/folder to download")]
     public required string UrlLink { get; set; }
 
-    [CliOption(Name = "save-dir", Description = "The directory to download the file/folder to", Required = false)]
+    [CommandOption("--save-dir")]
+    [Description("The directory to download the file/folder to")]
     public string? DownloadPath { get; set; }
 
-    [CliOption(Name = "pwd", Description = "Password for password-protected files", Required = false)]
+    [CommandOption("--pwd")]
+    [Description("Password for password-protected files")]
     public string? Password { get; set; }
+}
 
+public class GetCommand : AsyncCommand<GetCommandSettings>
+{
     private static readonly HttpClient PluckHttpClient = new();
 
-    public async Task RunAsync()
+    public override async Task<int> ExecuteAsync(CommandContext context, GetCommandSettings settings, CancellationToken cancellationToken)
     {
         try
         {
@@ -33,18 +39,18 @@ public class GetCliCommand
             PluckHttpClient.BaseAddress = new Uri(pluckConfig.ServerUrl);
             PluckHttpClient.DefaultRequestHeaders.Add("X-PLUCK-API-KEY", pluckConfig.ApiUrl);
 
-            if (Password is not null)
+            if (settings.Password is not null)
             {
-                PluckHttpClient.DefaultRequestHeaders.Add("X-PLUCK-PASSWORD", Password);
+                PluckHttpClient.DefaultRequestHeaders.Add("X-PLUCK-PASSWORD", settings.Password);
             }
 
-            var response = await PluckHttpClient.GetAsync(UrlLink, HttpCompletionOption.ResponseHeadersRead);
+            var response = await PluckHttpClient.GetAsync(settings.UrlLink, HttpCompletionOption.ResponseHeadersRead);
 
             // Handle password-protected files
             if (response.StatusCode == HttpStatusCode.Unauthorized &&
                 response.Headers.TryGetValues("X-PLUCK-PASSWORD-REQUIRED", out _))
             {
-                if (Password is not null)
+                if (settings.Password is not null)
                 {
                     // Password was provided but was incorrect
                     throw new Exception("Incorrect password.");
@@ -56,7 +62,7 @@ public class GetCliCommand
                         .Secret());
 
                 PluckHttpClient.DefaultRequestHeaders.Add("X-PLUCK-PASSWORD", enteredPassword);
-                response = await PluckHttpClient.GetAsync(UrlLink, HttpCompletionOption.ResponseHeadersRead);
+                response = await PluckHttpClient.GetAsync(settings.UrlLink, HttpCompletionOption.ResponseHeadersRead);
 
                 // Check if the entered password was also wrong
                 if (response.StatusCode == HttpStatusCode.Unauthorized)
@@ -79,14 +85,14 @@ public class GetCliCommand
             // Get the filename from Content-Disposition header, falling back to the URL segment
             var fileName = response.Content.Headers.ContentDisposition?.FileNameStar
                            ?? response.Content.Headers.ContentDisposition?.FileName
-                           ?? Path.GetFileName(new Uri(UrlLink).AbsolutePath);
-            if (DownloadPath is not null && !Directory.Exists(DownloadPath))
+                           ?? Path.GetFileName(new Uri(settings.UrlLink).AbsolutePath);
+            if (settings.DownloadPath is not null && !Directory.Exists(settings.DownloadPath))
             {
-                Directory.CreateDirectory(DownloadPath);
+                Directory.CreateDirectory(settings.DownloadPath);
             }
 
-            var saveDir = DownloadPath is not null
-                ? Path.GetFullPath(DownloadPath)
+            var saveDir = settings.DownloadPath is not null
+                ? Path.GetFullPath(settings.DownloadPath)
                 : Directory.GetCurrentDirectory();
             var saveFilePath = Path.Combine(saveDir, fileName);
 
@@ -139,10 +145,12 @@ public class GetCliCommand
             {
                 SpectreOutput.Success($"Saved to {saveFilePath}");
             }
+            return 0;
         }
         catch (Exception e)
         {
             SpectreOutput.Error($"Failed to download file: {e.Message}");
+            return 1;
         }
         finally
         {

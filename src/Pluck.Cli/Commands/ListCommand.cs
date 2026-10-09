@@ -1,6 +1,8 @@
+using System.Threading;
+using System.ComponentModel;
 using System.Net;
 using System.Net.Http.Json;
-using DotMake.CommandLine;
+using Spectre.Console.Cli;
 using Pluck.Cli.Config;
 using Pluck.Cli.Utils;
 using Pluck.Shared.Dtos;
@@ -9,15 +11,18 @@ using Spectre.Console;
 
 namespace Pluck.Cli.Commands;
 
-[CliCommand(Name = "list", Description = "Lists files on the Pluck instance", Parent = typeof(PluckCliCommand))]
-public class ListCliCommand
+public class ListCommandSettings : CommandSettings
 {
-    [CliOption(Name = "name", Description = "Optional username to filter files by", Required = false)]
+    [CommandOption("--name")]
+    [Description("Optional username to filter files by")]
     public string? Name { get; set; }
+}
 
+public class ListCommand : AsyncCommand<ListCommandSettings>
+{
     private static readonly HttpClient PluckHttpClient = new();
 
-    public async Task RunAsync()
+    public override async Task<int> ExecuteAsync(CommandContext context, ListCommandSettings settings, CancellationToken cancellationToken)
     {
         try
         {
@@ -33,8 +38,8 @@ public class ListCliCommand
                 .SpinnerStyle(new Style(Color.DodgerBlue1))
                 .StartAsync("Fetching files...", async _ =>
                 {
-                    var url = Name is not null
-                        ? $"/api/files?name={Uri.EscapeDataString(Name)}"
+                    var url = settings.Name is not null
+                        ? $"/api/files?name={Uri.EscapeDataString(settings.Name)}"
                         : "/api/files";
                     var response = await PluckHttpClient.GetAsync(url);
 
@@ -42,8 +47,7 @@ public class ListCliCommand
                     {
                         if (response.StatusCode == HttpStatusCode.Unauthorized)
                         {
-                            throw new Exception(
-                                "You're not authorized to list files on this Pluck instance.");
+                            throw new Exception("You're not authorized to list files on this Pluck instance.");
                         }
 
                         var errorResponse = await response.Content.ReadFromJsonAsync<ErrorResponseDto>();
@@ -58,10 +62,12 @@ public class ListCliCommand
                 });
 
             SpectreOutput.FileTable(files!);
+            return 0;
         }
         catch (Exception e)
         {
             SpectreOutput.Error($"Failed to list files: {e.Message}");
+            return 1;
         }
         finally
         {

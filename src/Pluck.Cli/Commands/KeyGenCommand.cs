@@ -1,14 +1,18 @@
-using DotMake.CommandLine;
+using System.Threading;
+using Spectre.Console.Cli;
 using Pluck.Cli.Utils;
+using System;
+using System.ComponentModel;
 
 namespace Pluck.Cli.Commands;
 
-[CliCommand(Name = "key-gen",
-    Description = "Generates a random key and copies it to the clipboard",
-    Parent = typeof(PluckCliCommand))]
-public class KeyGenCliCommand
+public class KeyGenCommandSettings : CommandSettings
 {
-    public void Run()
+}
+
+public class KeyGenCommand : Command<KeyGenCommandSettings>
+{
+    public override int Execute(CommandContext context, KeyGenCommandSettings settings, CancellationToken cancellationToken)
     {
         try
         {
@@ -26,10 +30,12 @@ public class KeyGenCliCommand
 
             SpectreOutput.Success("Generated key successfully.");
             SpectreOutput.ApiKeyPanel(key);
+            return 0;
         }
         catch (Exception e)
         {
             SpectreOutput.Error($"Failed to generate key: {e.Message}");
+            return 1;
         }
     }
 }

@@ -1,6 +1,8 @@
+using System.Threading;
+using System.ComponentModel;
 using System.Net;
 using System.Net.Http.Json;
-using DotMake.CommandLine;
+using Spectre.Console.Cli;
 using Pluck.Cli.Config;
 using Pluck.Cli.Utils;
 using Pluck.Shared.Dtos;
@@ -8,33 +10,36 @@ using Spectre.Console;
 
 namespace Pluck.Cli.Commands;
 
-[CliCommand(Name = "revoke-user", Description = "Revokes a user from the Pluck instance",
-    Parent = typeof(PluckCliCommand))]
-public class RevokeUserCliCommand
+public class RevokeUserCommandSettings : CommandSettings
 {
-    [CliArgument(Name = "name", Description = "The name of the user to revoke")]
+    [CommandArgument(0, "<name>")]
+    [Description("The name of the user to revoke")]
     public required string Name { get; set; }
 
-    [CliOption(Name = "force", Description = "Skip confirmation prompt", Required = false)]
+    [CommandOption("-f|--force")]
+    [Description("Skip confirmation prompt")]
     public bool Force { get; set; } = false;
+}
 
+public class RevokeUserCommand : AsyncCommand<RevokeUserCommandSettings>
+{
     private static readonly HttpClient PluckHttpClient = new();
 
-    public async Task RunAsync()
+    public override async Task<int> ExecuteAsync(CommandContext context, RevokeUserCommandSettings settings, CancellationToken cancellationToken)
     {
         try
         {
             var pluckConfig = PluckConfigManager.GetConfigOrThrow();
 
-            if (!Force)
+            if (!settings.Force)
             {
                 var confirmed = AnsiConsole.Confirm(
-                    $"Are you sure you want to revoke user [bold red]{Markup.Escape(Name)}[/]?",
+                    $"Are you sure you want to revoke user [bold red]{Markup.Escape(settings.Name)}[/]?",
                     defaultValue: false);
                 if (!confirmed)
                 {
                     SpectreOutput.Info("Operation cancelled.");
-                    return;
+                    return 0;
                 }
             }
 
@@ -44,9 +49,9 @@ public class RevokeUserCliCommand
             await AnsiConsole.Status()
                 .Spinner(Spinner.Known.Dots)
                 .SpinnerStyle(new Style(Color.DodgerBlue1))
-                .StartAsync($"Revoking user '{Name}'...", async _ =>
+                .StartAsync($"Revoking user '{settings.Name}'...", async _ =>
                 {
-                    var response = await PluckHttpClient.DeleteAsync($"/api/admin/users/{Name}");
+                    var response = await PluckHttpClient.DeleteAsync($"/api/admin/users/{settings.Name}");
                     if (!response.IsSuccessStatusCode)
                     {
                         if (response.StatusCode == HttpStatusCode.Unauthorized)
@@ -60,11 +65,13 @@ public class RevokeUserCliCommand
                     }
                 });
 
-            SpectreOutput.Success($"User '{Name}' revoked successfully.");
+            SpectreOutput.Success($"User '{settings.Name}' revoked successfully.");
+            return 0;
         }
         catch (Exception e)
         {
             SpectreOutput.Error($"Failed to revoke user: {e.Message}");
+            return 1;
         }
         finally
         {

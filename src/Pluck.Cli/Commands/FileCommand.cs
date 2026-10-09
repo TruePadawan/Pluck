@@ -1,6 +1,8 @@
+using System.Threading;
+using System.ComponentModel;
 using System.Net;
 using System.Net.Http.Json;
-using DotMake.CommandLine;
+using Spectre.Console.Cli;
 using Pluck.Cli.Config;
 using Pluck.Cli.Utils;
 using Pluck.Shared.Dtos;
@@ -9,16 +11,18 @@ using Spectre.Console;
 
 namespace Pluck.Cli.Commands;
 
-[CliCommand(Name = "file", Description = "Displays the details of a file on the Pluck instance",
-    Parent = typeof(PluckCliCommand))]
-public class FileCliCommand
+public class FileCommandSettings : CommandSettings
 {
-    [CliArgument(Name = "token", Description = "The token of the file to retrieve")]
+    [CommandArgument(0, "<token>")]
+    [Description("The token of the file to retrieve")]
     public required string Token { get; set; }
+}
 
+public class FileCommand : AsyncCommand<FileCommandSettings>
+{
     private static readonly HttpClient PluckHttpClient = new();
 
-    public async Task RunAsync()
+    public override async Task<int> ExecuteAsync(CommandContext context, FileCommandSettings settings, CancellationToken cancellationToken)
     {
         try
         {
@@ -34,7 +38,7 @@ public class FileCliCommand
                 .SpinnerStyle(new Style(Color.DodgerBlue1))
                 .StartAsync("Fetching file details...", async _ =>
                 {
-                    var response = await PluckHttpClient.GetAsync($"/api/files/{Uri.EscapeDataString(Token)}");
+                    var response = await PluckHttpClient.GetAsync($"/api/files/{Uri.EscapeDataString(settings.Token)}");
 
                     if (!response.IsSuccessStatusCode)
                     {
@@ -45,8 +49,7 @@ public class FileCliCommand
 
                         if (response.StatusCode == HttpStatusCode.NotFound)
                         {
-                            throw new Exception(
-                                "File not found. It may have expired or reached its download limit.");
+                            throw new Exception("File not found. It may have expired or reached its download limit.");
                         }
 
                         var errorResponse = await response.Content.ReadFromJsonAsync<ErrorResponseDto>();
@@ -71,10 +74,12 @@ public class FileCliCommand
             }
 
             SpectreOutput.FileDetail(file!);
+            return 0;
         }
         catch (Exception e)
         {
             SpectreOutput.Error($"Failed to retrieve file: {e.Message}");
+            return 1;
         }
         finally
         {
