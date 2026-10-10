@@ -30,7 +30,8 @@ public class GetCommand : AsyncCommand<GetCommandSettings>
 {
     private static readonly HttpClient PluckHttpClient = new();
 
-    public override async Task<int> ExecuteAsync(CommandContext context, GetCommandSettings settings, CancellationToken cancellationToken)
+    public override async Task<int> ExecuteAsync(CommandContext context, GetCommandSettings settings,
+        CancellationToken cancellationToken)
     {
         try
         {
@@ -39,36 +40,54 @@ public class GetCommand : AsyncCommand<GetCommandSettings>
             PluckHttpClient.BaseAddress = new Uri(pluckConfig.ServerUrl);
             PluckHttpClient.DefaultRequestHeaders.Add("X-PLUCK-API-KEY", pluckConfig.ApiUrl);
 
-            if (settings.Password is not null)
+            var uri = new Uri(settings.UrlLink);
+            var password = settings.Password;
+            if (string.IsNullOrEmpty(password) && !string.IsNullOrEmpty(uri.Fragment))
             {
-                PluckHttpClient.DefaultRequestHeaders.Add("X-PLUCK-PASSWORD", settings.Password);
+                password = uri.Fragment.TrimStart('#');
             }
 
-            var response = await PluckHttpClient.GetAsync(settings.UrlLink, HttpCompletionOption.ResponseHeadersRead);
+            var downloadUrl = uri.GetLeftPart(UriPartial.Path);
+            byte[]? finalEncryptionKey = null;
+            byte[]? finalIv = null;
 
-            // Handle password-protected files
+            var response = await PluckHttpClient.GetAsync(downloadUrl, HttpCompletionOption.ResponseHeadersRead,
+                cancellationToken);
+
+            // Handle encrypted files (which requires an AuthKey)
             if (response.StatusCode == HttpStatusCode.Unauthorized &&
-                response.Headers.TryGetValues("X-PLUCK-PASSWORD-REQUIRED", out _))
+                response.Headers.TryGetValues("X-PLUCK-AUTH-REQUIRED", out _))
             {
-                if (settings.Password is not null)
+                if (!response.Headers.TryGetValues("X-Pluck-Salt", out var saltVals) ||
+                    !response.Headers.TryGetValues("X-Pluck-IV", out var ivVals))
                 {
-                    // Password was provided but was incorrect
-                    throw new Exception("Incorrect password.");
+                    throw new Exception("Server did not return cryptographic metadata.");
                 }
 
-                // Prompt for password interactively
-                var enteredPassword = AnsiConsole.Prompt(
-                    new TextPrompt<string>("This file is password protected. Enter password:")
-                        .Secret());
+                var salt = Convert.FromBase64String(saltVals.First());
+                var iv = Convert.FromBase64String(ivVals.First());
 
-                PluckHttpClient.DefaultRequestHeaders.Add("X-PLUCK-PASSWORD", enteredPassword);
-                response = await PluckHttpClient.GetAsync(settings.UrlLink, HttpCompletionOption.ResponseHeadersRead);
+                if (string.IsNullOrEmpty(password))
+                {
+                    password = AnsiConsole.Prompt(
+                        new TextPrompt<string>("This file is encrypted. Enter password:")
+                            .Secret());
+                }
 
-                // Check if the entered password was also wrong
+                var (encryptionKey, authKey) = SecurityUtilities.DeriveKeys(password, salt);
+                var authKeyBase64 = Convert.ToBase64String(authKey);
+
+                PluckHttpClient.DefaultRequestHeaders.Add("X-Pluck-AuthKey", authKeyBase64);
+                response = await PluckHttpClient.GetAsync(downloadUrl, HttpCompletionOption.ResponseHeadersRead,
+                    cancellationToken);
+
                 if (response.StatusCode == HttpStatusCode.Unauthorized)
                 {
                     throw new Exception("Incorrect password.");
                 }
+
+                finalEncryptionKey = encryptionKey;
+                finalIv = iv;
             }
 
             if (!response.IsSuccessStatusCode)
@@ -85,7 +104,7 @@ public class GetCommand : AsyncCommand<GetCommandSettings>
             // Get the filename from Content-Disposition header, falling back to the URL segment
             var fileName = response.Content.Headers.ContentDisposition?.FileNameStar
                            ?? response.Content.Headers.ContentDisposition?.FileName
-                           ?? Path.GetFileName(new Uri(settings.UrlLink).AbsolutePath);
+                           ?? Path.GetFileName(downloadUrl);
             if (settings.DownloadPath is not null && !Directory.Exists(settings.DownloadPath))
             {
                 Directory.CreateDirectory(settings.DownloadPath);
@@ -98,6 +117,21 @@ public class GetCommand : AsyncCommand<GetCommandSettings>
 
             var contentLength = response.Content.Headers.ContentLength;
             await using var contentStream = await response.Content.ReadAsStreamAsync();
+
+            Stream readStream = contentStream;
+            System.Security.Cryptography.ICryptoTransform? decryptor = null;
+            System.Security.Cryptography.Aes? aes = null;
+
+            if (finalEncryptionKey != null && finalIv != null)
+            {
+                aes = System.Security.Cryptography.Aes.Create();
+                aes.Key = finalEncryptionKey;
+                aes.IV = finalIv;
+                decryptor = aes.CreateDecryptor();
+                readStream = new System.Security.Cryptography.CryptoStream(contentStream, decryptor,
+                    System.Security.Cryptography.CryptoStreamMode.Read);
+            }
+
             await using (var fileStream = File.Create(saveFilePath))
             {
                 if (contentLength.HasValue)
@@ -117,7 +151,7 @@ public class GetCommand : AsyncCommand<GetCommandSettings>
 
                             var buffer = new byte[81920];
                             int bytesRead;
-                            while ((bytesRead = await contentStream.ReadAsync(buffer)) > 0)
+                            while ((bytesRead = await readStream.ReadAsync(buffer)) > 0)
                             {
                                 await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead));
                                 downloadTask.Increment(bytesRead);
@@ -130,7 +164,7 @@ public class GetCommand : AsyncCommand<GetCommandSettings>
                         .Spinner(Spinner.Known.Dots)
                         .SpinnerStyle(new Style(Color.DodgerBlue1))
                         .StartAsync($"Downloading {Markup.Escape(fileName)}...",
-                            async _ => { await contentStream.CopyToAsync(fileStream); });
+                            async _ => { await readStream.CopyToAsync(fileStream); });
                 }
             }
 
@@ -145,6 +179,7 @@ public class GetCommand : AsyncCommand<GetCommandSettings>
             {
                 SpectreOutput.Success($"Saved to {saveFilePath}");
             }
+
             return 0;
         }
         catch (Exception e)
@@ -155,6 +190,8 @@ public class GetCommand : AsyncCommand<GetCommandSettings>
         finally
         {
             PluckHttpClient.Dispose();
+            // Dispose of decryptor if it was used
+            // CryptoStream takes care of itself and the underlying stream when disposed
         }
     }
 }

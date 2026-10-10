@@ -16,7 +16,7 @@ public static class SecurityUtilities
     {
         var passwordBytes = Encoding.UTF8.GetBytes(password);
         const int iterations = 600000;
-        var keyMaterial = Rfc2898DeriveBytes.Pbkdf2(passwordBytes, salt, iterations, HashAlgorithmName.SHA3_256, 64);
+        var keyMaterial = Rfc2898DeriveBytes.Pbkdf2(passwordBytes, salt, iterations, HashAlgorithmName.SHA256, 64);
         var encryptionKey = keyMaterial[..32];
         var authKey = keyMaterial[32..];
         return (encryptionKey, authKey);
