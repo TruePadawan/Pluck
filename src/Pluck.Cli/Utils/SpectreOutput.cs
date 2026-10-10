@@ -48,6 +48,7 @@ public static class SpectreOutput
 
         detailsGrid.AddRow("[bold]Token[/]", Markup.Escape(file.Token));
         detailsGrid.AddRow("[bold]Name[/]", Markup.Escape(file.OriginalFileName));
+        detailsGrid.AddRow("[bold]Size[/]", Utilities.FormatBytes(file.Size));
         detailsGrid.AddRow("[bold]Downloads Left[/]", file.DownloadsLeft?.ToString() ?? "Unlimited");
         detailsGrid.AddRow("[bold]Total Downloads[/]", file.DownloadCount.ToString());
         detailsGrid.AddRow("[bold]Expires At[/]", Markup.Escape(file.ExpiresAt.ToString("g")));
@@ -142,6 +143,7 @@ public static class SpectreOutput
 
         table.AddColumn(new TableColumn("[bold]Token[/]"));
         table.AddColumn(new TableColumn("[bold]Name[/]"));
+        table.AddColumn(new TableColumn("[bold]Size[/]").Centered());
         table.AddColumn(new TableColumn("[bold]Downloads Left[/]").Centered());
         table.AddColumn(new TableColumn("[bold]Total Downloads[/]").Centered());
         table.AddColumn(new TableColumn("[bold]Expires At[/]"));
@@ -153,6 +155,7 @@ public static class SpectreOutput
             table.AddRow(
                 Markup.Escape(file.Token),
                 Markup.Escape(file.OriginalFileName),
+                Utilities.FormatBytes(file.Size),
                 file.DownloadsLeft?.ToString() ?? "Unlimited",
                 file.DownloadCount.ToString(),
                 Markup.Escape(file.ExpiresAt.ToString("g")),
