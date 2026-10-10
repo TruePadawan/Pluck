@@ -5,6 +5,7 @@ using Pluck.Api.Middlewares;
 using Pluck.Api.Persistence;
 using Pluck.Api.Repositories;
 using Pluck.Api.Security;
+using Pluck.Api.Services.Analytics;
 using Pluck.Api.Workers;
 using Scalar.AspNetCore;
 
@@ -13,6 +14,7 @@ var builder = WebApplication.CreateBuilder(args);
 // builder.Services.AddOpenApi();
 builder.Services.AddScoped<UserRepository>();
 builder.Services.AddScoped<FileRepository>();
+builder.Services.AddSingleton<IAnalyticsQueue, AnalyticsQueue>();
 builder.Services.AddHostedService<FileCleanupBackgroundService>();
 builder.WebHost.ConfigureKestrel(options =>
 {
