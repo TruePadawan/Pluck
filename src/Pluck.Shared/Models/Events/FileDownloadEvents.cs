@@ -14,6 +14,18 @@ public class FileDownloadEvents : EntityBase
         FileId = Guid.Empty;
         HashedIp = string.Empty;
     }
+
+    public static FileDownloadEvents Create(Guid fileId, string hashedIp, string? city, string? country, ClientType clientType)
+    {
+        return new FileDownloadEvents
+        {
+            FileId = fileId,
+            HashedIp = hashedIp,
+            City = city,
+            Country = country,
+            ClientType = clientType
+        };
+    }
 }
 
 public enum ClientType

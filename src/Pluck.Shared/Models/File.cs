@@ -1,3 +1,4 @@
+using Pluck.Shared.Models.Events;
 using Pluck.Shared.Params;
 
 namespace Pluck.Shared.Models;
@@ -14,6 +15,8 @@ public sealed class File : EntityBase
     public DateTime ExpiresAt { get; private set; }
     public bool IsDirectory { get; private set; }
     public string? PasswordHash { get; private set; }
+    public int DownloadCount { get; private set; }
+    public ICollection<FileDownloadEvents> DownloadEvents { get; private set; }
 
     public bool IsPasswordProtected => PasswordHash is not null;
 
@@ -29,6 +32,8 @@ public sealed class File : EntityBase
         ExpiresAt = DateTime.UtcNow;
         IsDirectory = false;
         PasswordHash = null;
+        DownloadCount = 0;
+        DownloadEvents = [];
     }
 
     private File(FileParams p)
@@ -42,6 +47,8 @@ public sealed class File : EntityBase
         ExpiresAt = p.ExpiresAt;
         IsDirectory = p.IsDirectory;
         PasswordHash = p.PasswordHash;
+        DownloadCount = 0;
+        DownloadEvents = [];
     }
 
     public static File Create(FileParams p)
@@ -73,6 +80,12 @@ public sealed class File : EntityBase
             DownloadsLeft--;
             UpdateLastModified();
         }
+    }
+
+    public void IncrementDownloadCount()
+    {
+        DownloadCount++;
+        UpdateLastModified();
     }
 
     public bool IsDownloadable(string uploadDirectory)
