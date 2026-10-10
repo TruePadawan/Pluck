@@ -2,6 +2,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Pluck.Api.Security;
 using Pluck.Shared.Models;
+using Pluck.Shared.Models.Events;
+using Pluck.Shared.Params;
 using File = Pluck.Shared.Models.File;
 
 namespace Pluck.Api.Persistence;
@@ -18,6 +20,7 @@ public class AppDbContext : DbContext
 
     public DbSet<File> Files => Set<File>();
     public DbSet<User> Users => Set<User>();
+    public DbSet<FileDownloadEvents> FileDownloadEvents => Set<FileDownloadEvents>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -5,6 +5,8 @@ using Pluck.Shared.Dtos;
 using Pluck.Shared.Dtos.Files;
 using Pluck.Shared.Models;
 using File = Pluck.Shared.Models.File;
+using Microsoft.EntityFrameworkCore;
+using Pluck.Api.Persistence;
 
 namespace Pluck.Api.Endpoints;
 
@@ -24,6 +26,7 @@ public static class FileEndpoints
         {
             app.MapGetFile();
             app.MapGetFiles();
+            app.MapGetFileAnalytics();
             app.MapDeleteFile();
         }
 
@@ -117,6 +120,59 @@ public static class FileEndpoints
                                  It returns 401 if not authenticated or if the file is not owned by the authenticated user,
                                  or 404 if the file is not found.
                                  """);
+        }
+
+        /// <summary>
+        /// Returns the analytics for a specific file
+        /// </summary>
+        private void MapGetFileAnalytics()
+        {
+            var builder = GetRouteBuilder(app);
+            builder.MapGet("{token}/analytics",
+                    async Task<Results<UnauthorizedHttpResult, NotFound<ErrorResponseDto>, Ok<FileAnalyticsDto>>> (
+                        HttpContext context, string token, FileRepository fileRepository, AppDbContext db) =>
+                    {
+                        if (context.Items["User"] is not User user)
+                        {
+                            return TypedResults.Unauthorized();
+                        }
+
+                        var file = await fileRepository.GetFileByToken(token);
+                        if (file is null)
+                        {
+                            return TypedResults.NotFound(
+                                new ErrorResponseDto("Could not find file with specified token"));
+                        }
+
+                        if (user.Role != "Admin" && file.OwnerId != user.Id)
+                        {
+                            return TypedResults.Unauthorized();
+                        }
+
+                        var events = await db.FileDownloadEvents
+                            .Where(e => e.FileId == file.Id)
+                            .ToListAsync();
+
+                        var clientTypes = events
+                            .GroupBy(e => e.ClientType.ToString())
+                            .ToDictionary(g => g.Key, g => g.Count());
+
+                        var countries = events
+                            .GroupBy(e => e.Country ?? "Unknown")
+                            .ToDictionary(g => g.Key, g => g.Count());
+
+                        var dto = new FileAnalyticsDto(
+                            file.DownloadCount,
+                            clientTypes,
+                            countries
+                        );
+
+                        return TypedResults.Ok(dto);
+                    })
+                .WithApiVersionSet(Utilities.GetApiVersionSet(app))
+                .MapToApiVersion(1, 0)
+                .WithName("GetFileAnalytics")
+                .WithSummary("Returns analytics for the specified file");
         }
 
         /// <summary>

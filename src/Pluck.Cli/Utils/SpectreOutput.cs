@@ -49,6 +49,7 @@ public static class SpectreOutput
         detailsGrid.AddRow("[bold]Token[/]", Markup.Escape(file.Token));
         detailsGrid.AddRow("[bold]Name[/]", Markup.Escape(file.OriginalFileName));
         detailsGrid.AddRow("[bold]Downloads Left[/]", file.DownloadsLeft?.ToString() ?? "Unlimited");
+        detailsGrid.AddRow("[bold]Total Downloads[/]", file.DownloadCount.ToString());
         detailsGrid.AddRow("[bold]Expires At[/]", Markup.Escape(file.ExpiresAt.ToString("g")));
         detailsGrid.AddRow("[bold]Download URL[/]", Markup.Escape(file.DownloadUrl));
         if (file.IsPasswordProtected)
@@ -77,6 +78,50 @@ public static class SpectreOutput
         AnsiConsole.Write(outerGrid);
     }
 
+    /// <summary>
+    /// Renders the file's analytics data.
+    /// </summary>
+    public static void FileAnalytics(FileAnalyticsDto analytics)
+    {
+        var mainGrid = new Grid();
+        mainGrid.AddColumn(new GridColumn().PadRight(2));
+        mainGrid.AddColumn();
+
+        mainGrid.AddRow("[bold]Total Downloads[/]", analytics.TotalDownloads.ToString());
+
+        var clientChart = new BarChart()
+            .Width(60)
+            .Label("[green bold]Client Types[/]")
+            .CenterLabel();
+
+        foreach (var (client, count) in analytics.ClientTypes)
+        {
+            clientChart.AddItem(client, count, Color.DodgerBlue1);
+        }
+
+        var countryChart = new BarChart()
+            .Width(60)
+            .Label("[green bold]Countries[/]")
+            .CenterLabel();
+
+        foreach (var (country, count) in analytics.Countries)
+        {
+            countryChart.AddItem(country, count, Color.Purple);
+        }
+
+        mainGrid.AddRow(new Text(""));
+        mainGrid.AddRow(new Markup("[bold]Client Distribution[/]"), clientChart);
+        mainGrid.AddRow(new Text(""));
+        mainGrid.AddRow(new Markup("[bold]Country Distribution[/]"), countryChart);
+
+        var panel = new Panel(mainGrid)
+            .Header("[bold dodgerblue1]File Analytics[/]")
+            .Border(BoxBorder.Rounded)
+            .BorderStyle(new Style(Color.DodgerBlue1));
+
+        AnsiConsole.Write(panel);
+    }
+
     // File Table
 
     /// <summary>
@@ -98,6 +143,7 @@ public static class SpectreOutput
         table.AddColumn(new TableColumn("[bold]Token[/]"));
         table.AddColumn(new TableColumn("[bold]Name[/]"));
         table.AddColumn(new TableColumn("[bold]Downloads Left[/]").Centered());
+        table.AddColumn(new TableColumn("[bold]Total Downloads[/]").Centered());
         table.AddColumn(new TableColumn("[bold]Expires At[/]"));
         table.AddColumn(new TableColumn("[bold]Protected[/]").Centered());
         table.AddColumn(new TableColumn("[bold]Download URL[/]"));
@@ -108,6 +154,7 @@ public static class SpectreOutput
                 Markup.Escape(file.Token),
                 Markup.Escape(file.OriginalFileName),
                 file.DownloadsLeft?.ToString() ?? "Unlimited",
+                file.DownloadCount.ToString(),
                 Markup.Escape(file.ExpiresAt.ToString("g")),
                 file.IsPasswordProtected ? "[yellow]Yes[/]" : "No",
                 Markup.Escape(file.DownloadUrl));

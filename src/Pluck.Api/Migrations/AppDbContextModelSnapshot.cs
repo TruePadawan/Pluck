@@ -17,6 +17,46 @@ namespace Pluck.Api.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.10");
 
+            modelBuilder.Entity("Pluck.Shared.Models.Events.FileDownloadEvents", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("City")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ClientType")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Country")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("FileId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("HashedIp")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("LastModifiedAt")
+                        .ValueGeneratedOnUpdate()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FileId");
+
+                    b.ToTable("FileDownloadEvents", (string)null);
+                });
+
             modelBuilder.Entity("Pluck.Shared.Models.File", b =>
                 {
                     b.Property<Guid>("Id")
@@ -36,6 +76,9 @@ namespace Pluck.Api.Migrations
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("TEXT");
+
+                    b.Property<int>("DownloadCount")
+                        .HasColumnType("INTEGER");
 
                     b.Property<int?>("DownloadsLeft")
                         .HasColumnType("INTEGER");
@@ -116,6 +159,17 @@ namespace Pluck.Api.Migrations
                     b.ToTable("Users", (string)null);
                 });
 
+            modelBuilder.Entity("Pluck.Shared.Models.Events.FileDownloadEvents", b =>
+                {
+                    b.HasOne("Pluck.Shared.Models.File", "File")
+                        .WithMany("DownloadEvents")
+                        .HasForeignKey("FileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("File");
+                });
+
             modelBuilder.Entity("Pluck.Shared.Models.File", b =>
                 {
                     b.HasOne("Pluck.Shared.Models.User", "Owner")
@@ -125,6 +179,11 @@ namespace Pluck.Api.Migrations
                         .IsRequired();
 
                     b.Navigation("Owner");
+                });
+
+            modelBuilder.Entity("Pluck.Shared.Models.File", b =>
+                {
+                    b.Navigation("DownloadEvents");
                 });
 
             modelBuilder.Entity("Pluck.Shared.Models.User", b =>
