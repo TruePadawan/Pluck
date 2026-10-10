@@ -15,6 +15,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddScoped<UserRepository>();
 builder.Services.AddScoped<FileRepository>();
 builder.Services.AddSingleton<IAnalyticsQueue, AnalyticsQueue>();
+builder.Services.AddSingleton<IGeoLocationService, GeoLocationService>();
 builder.Services.AddHostedService<FileCleanupBackgroundService>();
 builder.Services.AddHostedService<AnalyticsBackgroundService>();
 builder.WebHost.ConfigureKestrel(options =>

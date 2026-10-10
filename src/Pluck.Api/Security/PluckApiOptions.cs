@@ -8,4 +8,5 @@ public class PluckApiOptions
 
     [Required] public string AdminKey { get; set; } = string.Empty;
     [Required] public string UploadDirectory { get; set; } = string.Empty;
+    public string GeoDbPath => "Data/GeoLite2-City.mmdb";
 }

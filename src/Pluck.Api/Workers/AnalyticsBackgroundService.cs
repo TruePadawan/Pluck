@@ -11,21 +11,24 @@ public class AnalyticsBackgroundService : BackgroundService
 {
     private readonly IAnalyticsQueue _analyticsQueue;
     private readonly IServiceScopeFactory _scopeFactory;
+    private readonly IGeoLocationService _geoLocationService;
     private readonly ILogger<AnalyticsBackgroundService> _logger;
 
     public AnalyticsBackgroundService(
         IAnalyticsQueue analyticsQueue,
         IServiceScopeFactory scopeFactory,
+        IGeoLocationService geoLocationService,
         ILogger<AnalyticsBackgroundService> logger)
     {
         _analyticsQueue = analyticsQueue;
         _scopeFactory = scopeFactory;
+        _geoLocationService = geoLocationService;
         _logger = logger;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _logger.LogInformation("AnalyticsBackgroundService is starting.");
+        _logger.LogInformation("[LOG] AnalyticsBackgroundService is starting.");
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -40,7 +43,7 @@ public class AnalyticsBackgroundService : BackgroundService
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error occurred processing analytics message.");
+                _logger.LogError(ex, "[LOG] Error occurred processing analytics message.");
             }
         }
     }
@@ -60,12 +63,15 @@ public class AnalyticsBackgroundService : BackgroundService
 
         file.IncrementDownloadCount();
 
-        // TODO: Implement Geolocation
+        var location = message.IpAddress != null 
+            ? _geoLocationService.LookupLocation(message.IpAddress) 
+            : (null, null);
+
         var downloadEvent = FileDownloadEvents.Create(
             fileId: file.Id,
             hashedIp: hashedIp,
-            city: null,
-            country: null,
+            city: location.City,
+            country: location.Country,
             clientType: message.ClientType
         );
 

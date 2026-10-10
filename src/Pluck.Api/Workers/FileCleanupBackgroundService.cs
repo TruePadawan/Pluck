@@ -22,7 +22,7 @@ public class FileCleanupBackgroundService(
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                logger.LogError(ex, "File cleanup loop iteration failed. Continuing");
+                logger.LogError(ex, "[LOG] File cleanup loop iteration failed. Continuing");
             }
 
             await Task.Delay(TimeSpan.FromMinutes(10), stoppingToken);
