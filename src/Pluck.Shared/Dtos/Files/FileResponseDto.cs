@@ -6,6 +6,7 @@ public record FileResponseDto(
     int? DownloadsLeft,
     DateTime ExpiresAt,
     string DownloadUrl,
+    long Size,
     bool IsDirectory,
     bool IsPasswordProtected,
     int DownloadCount

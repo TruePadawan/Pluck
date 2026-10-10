@@ -20,6 +20,7 @@ public class FileRepository(AppDbContext db)
             DiskFileName = fileDto.DiskFileName,
             OriginalFileName = fileDto.OriginalFileName,
             ContentType = fileDto.ContentType,
+            Size = fileDto.Size,
             DownloadsLeft = fileDto.MaxDownloads,
             ExpiresAt = fileExpiryDate,
             IsDirectory = fileDto.IsDirectory,

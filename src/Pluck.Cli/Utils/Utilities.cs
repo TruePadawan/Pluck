@@ -61,4 +61,20 @@ public static class Utilities
 
         return new Markup(sb.ToString().TrimEnd());
     }
+
+    /// <summary>
+    /// Formats a byte size into a human-readable string (KB, MB, GB, etc).
+    /// </summary>
+    public static string FormatBytes(long bytes)
+    {
+        string[] suffix = { "B", "KB", "MB", "GB", "TB" };
+        int i;
+        double size = bytes;
+        for (i = 0; i < suffix.Length && bytes >= 1024; i++, bytes /= 1024)
+        {
+            size = bytes / 1024.0;
+        }
+
+        return string.Format("{0:0.##} {1}", size, suffix[i]);
+    }
 }

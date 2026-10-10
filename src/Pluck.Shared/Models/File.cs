@@ -11,6 +11,7 @@ public sealed class File : EntityBase
     public string DiskFileName { get; private set; }
     public string OriginalFileName { get; private set; }
     public string ContentType { get; private set; }
+    public long Size { get; private set; }
     public int? DownloadsLeft { get; private set; }
     public DateTime ExpiresAt { get; private set; }
     public bool IsDirectory { get; private set; }
@@ -28,6 +29,7 @@ public sealed class File : EntityBase
         DiskFileName = string.Empty;
         OriginalFileName = string.Empty;
         ContentType = string.Empty;
+        Size = 0;
         DownloadsLeft = null;
         ExpiresAt = DateTime.UtcNow;
         IsDirectory = false;
@@ -43,6 +45,7 @@ public sealed class File : EntityBase
         DiskFileName = p.DiskFileName;
         OriginalFileName = p.OriginalFileName;
         ContentType = p.ContentType;
+        Size = p.Size;
         DownloadsLeft = p.DownloadsLeft;
         ExpiresAt = p.ExpiresAt;
         IsDirectory = p.IsDirectory;
@@ -65,6 +68,7 @@ public sealed class File : EntityBase
         DiskFileName = p.DiskFileName;
         OriginalFileName = p.OriginalFileName;
         ContentType = p.ContentType;
+        Size = p.Size;
         DownloadsLeft = p.DownloadsLeft;
         ExpiresAt = p.ExpiresAt;
         IsDirectory = p.IsDirectory;
@@ -108,6 +112,8 @@ public sealed class File : EntityBase
             throw new ArgumentException("Original name cannot be null or empty", nameof(p.OriginalFileName));
         if (string.IsNullOrWhiteSpace(p.ContentType))
             throw new ArgumentException("Content type cannot be null or empty", nameof(p.ContentType));
+        if (p.Size < 0)
+            throw new ArgumentException("Size cannot be negative", nameof(p.Size));
         if (p.DownloadsLeft < 0)
             throw new ArgumentException("The number of downloads left cannot be negative", nameof(p.DownloadsLeft));
         if (p.ExpiresAt < DateTime.UtcNow)

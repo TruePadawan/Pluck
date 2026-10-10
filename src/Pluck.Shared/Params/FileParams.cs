@@ -10,6 +10,7 @@ public class FileParams
     public required string DiskFileName { get; init; }
     public required string OriginalFileName { get; init; }
     public required string ContentType { get; init; }
+    public required long Size { get; init; }
     public int? DownloadsLeft { get; init; }
     public required DateTime ExpiresAt { get; init; }
     public bool IsDirectory { get; init; }

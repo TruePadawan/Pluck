@@ -114,10 +114,12 @@ public static class UploadEndpoints
 
                                 Directory.CreateDirectory(uploadDirectory);
                                 var savePath = Path.Combine(uploadDirectory, diskFileName);
+                                long fileSize;
                                 // stream file to disk
                                 await using (var destinationStream = File.Create(savePath))
                                 {
                                     await fileSection.Body.CopyToAsync(destinationStream);
+                                    fileSize = destinationStream.Length;
                                 }
 
                                 var fileContentType = fileSection.ContentType ?? "application/octet-stream";
@@ -126,7 +128,7 @@ public static class UploadEndpoints
                                     : null;
                                 var fileDto = new CreateFileDto(user.Id, finalToken, diskFileName,
                                     originalFileName,
-                                    fileContentType,
+                                    fileContentType, fileSize,
                                     fileTtlInHours, fileMaxDownloads, isDirectory, passwordHash);
                                 // Save the file entry in the database
                                 var file = await fileRepository.CreateFile(fileDto);

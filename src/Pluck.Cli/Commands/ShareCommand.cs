@@ -43,7 +43,8 @@ public class ShareCommand : AsyncCommand<ShareCommandSettings>
 {
     private static readonly HttpClient PluckHttpClient = new();
 
-    public override async Task<int> ExecuteAsync(CommandContext context, ShareCommandSettings settings, CancellationToken cancellationToken)
+    public override async Task<int> ExecuteAsync(CommandContext context, ShareCommandSettings settings,
+        CancellationToken cancellationToken)
     {
         string? tempZipPath = null;
         try
@@ -55,7 +56,8 @@ public class ShareCommand : AsyncCommand<ShareCommandSettings>
             // If a custom token was specified, check that it is unique and valid
             await ValidateCustomToken(settings.Token);
 
-            PluckHttpClient.DefaultRequestHeaders.Add("X-PLUCK-TTL", settings.Ttl.ToString(CultureInfo.InvariantCulture));
+            PluckHttpClient.DefaultRequestHeaders.Add("X-PLUCK-TTL",
+                settings.Ttl.ToString(CultureInfo.InvariantCulture));
             if (settings.Downloads.HasValue)
             {
                 PluckHttpClient.DefaultRequestHeaders.Add("X-PLUCK-MAX-DOWNLOADS",
@@ -177,8 +179,10 @@ public class ShareCommand : AsyncCommand<ShareCommandSettings>
                 // If finalToken is null (because a previous iteration failed validation), reprompt the user
                 if (finalToken == null)
                 {
-                    finalToken = AnsiConsole.Ask<string>(
-                        "Please enter a valid token or leave it blank to generate a random one: ", "");
+                    finalToken = AnsiConsole.Prompt(
+                        new TextPrompt<string>(
+                                "Please enter a valid token or leave it blank to generate a random one: ")
+                            .AllowEmpty());
                 }
 
                 // If they left it blank during a reprompt, they opted out of a custom token. Break the loop.
