@@ -7,5 +7,6 @@ public record FileResponseDto(
     DateTime ExpiresAt,
     string DownloadUrl,
     bool IsDirectory,
-    bool IsPasswordProtected
+    bool IsPasswordProtected,
+    int DownloadCount
 );

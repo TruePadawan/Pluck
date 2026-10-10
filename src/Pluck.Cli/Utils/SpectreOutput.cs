@@ -49,6 +49,7 @@ public static class SpectreOutput
         detailsGrid.AddRow("[bold]Token[/]", Markup.Escape(file.Token));
         detailsGrid.AddRow("[bold]Name[/]", Markup.Escape(file.OriginalFileName));
         detailsGrid.AddRow("[bold]Downloads Left[/]", file.DownloadsLeft?.ToString() ?? "Unlimited");
+        detailsGrid.AddRow("[bold]Total Downloads[/]", file.DownloadCount.ToString());
         detailsGrid.AddRow("[bold]Expires At[/]", Markup.Escape(file.ExpiresAt.ToString("g")));
         detailsGrid.AddRow("[bold]Download URL[/]", Markup.Escape(file.DownloadUrl));
         if (file.IsPasswordProtected)
@@ -98,6 +99,7 @@ public static class SpectreOutput
         table.AddColumn(new TableColumn("[bold]Token[/]"));
         table.AddColumn(new TableColumn("[bold]Name[/]"));
         table.AddColumn(new TableColumn("[bold]Downloads Left[/]").Centered());
+        table.AddColumn(new TableColumn("[bold]Total Downloads[/]").Centered());
         table.AddColumn(new TableColumn("[bold]Expires At[/]"));
         table.AddColumn(new TableColumn("[bold]Protected[/]").Centered());
         table.AddColumn(new TableColumn("[bold]Download URL[/]"));
@@ -108,6 +110,7 @@ public static class SpectreOutput
                 Markup.Escape(file.Token),
                 Markup.Escape(file.OriginalFileName),
                 file.DownloadsLeft?.ToString() ?? "Unlimited",
+                file.DownloadCount.ToString(),
                 Markup.Escape(file.ExpiresAt.ToString("g")),
                 file.IsPasswordProtected ? "[yellow]Yes[/]" : "No",
                 Markup.Escape(file.DownloadUrl));
