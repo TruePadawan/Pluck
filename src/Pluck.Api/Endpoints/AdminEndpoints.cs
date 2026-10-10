@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Pluck.Api.Repositories;
 using Pluck.Api.Security;
@@ -34,7 +35,8 @@ public static class AdminEndpoints
         {
             var builder = GetRouteBuilder(app);
             builder.MapPost("users",
-                    async Task<Results<UnauthorizedHttpResult, Conflict<ErrorResponseDto>, Ok<CreateUserResponseDto>>> (
+                    async Task<Results<UnauthorizedHttpResult, Conflict<ErrorResponseDto>, BadRequest<ErrorResponseDto>,
+                        Ok<CreateUserResponseDto>>> (
                         string name,
                         HttpContext context,
                         UserRepository userRepository) =>
@@ -42,6 +44,13 @@ public static class AdminEndpoints
                         if (context.Items["User"] is not User { Role: "Admin" })
                         {
                             return TypedResults.Unauthorized();
+                        }
+
+                        if (!Regex.IsMatch(name, "^[a-zA-Z0-9]+$"))
+                        {
+                            return TypedResults.BadRequest(
+                                new ErrorResponseDto(
+                                    "The name must be at least 1 character long and contain only alphanumeric characters."));
                         }
 
                         var newApiKey = Guid.NewGuid().ToString("N");
@@ -61,7 +70,7 @@ public static class AdminEndpoints
                 .WithSummary("Creates a new non-admin user")
                 .WithDescription("""
                                  Returns the new user and their API key.
-                                 It returns 401 if not authenticated as admin or 409 if the name is already used
+                                 It returns 401 if not authenticated as admin, 400 if the name is invalid, or 409 if the name is already used
                                  """);
         }
 
