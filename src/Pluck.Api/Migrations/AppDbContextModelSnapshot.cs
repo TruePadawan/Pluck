@@ -63,6 +63,10 @@ namespace Pluck.Api.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("AuthHash")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("ContentType")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -86,6 +90,10 @@ namespace Pluck.Api.Migrations
                     b.Property<DateTime>("ExpiresAt")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("IV")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<bool>("IsDirectory")
                         .HasColumnType("INTEGER");
 
@@ -101,7 +109,8 @@ namespace Pluck.Api.Migrations
                     b.Property<Guid>("OwnerId")
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("PasswordHash")
+                    b.Property<string>("Salt")
+                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<long>("Size")

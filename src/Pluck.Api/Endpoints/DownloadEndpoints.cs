@@ -37,8 +37,8 @@ public static class DownloadEndpoints
                         string token,
                         FileRepository fileRepository, IOptions<PluckApiOptions> apiOptions, HttpContext context,
                         IAnalyticsQueue analyticsQueue,
-                        [FromHeader(Name = "X-PLUCK-PASSWORD")]
-                        string? headerPassword = null) =>
+                        [FromHeader(Name = "X-Pluck-AuthKey")]
+                        string? headerAuthKey = null) =>
                     {
                         var file = await fileRepository.GetFileByToken(token);
                         if (file is null)
@@ -60,36 +60,32 @@ public static class DownloadEndpoints
                             formPassword = pwdValues.ToString();
                         }
 
-                        var providedPassword = headerPassword ?? formPassword;
+                        var providedAuthKey = headerAuthKey ?? formPassword;
                         bool isBrowserRequest = context.Request.Headers.Accept.ToString().Contains("text/html");
 
-                        // Password check happens before decrementing downloads
-                        if (file.IsPasswordProtected)
+                        if (providedAuthKey is null)
                         {
-                            if (providedPassword is null)
+                            if (isBrowserRequest)
                             {
-                                if (isBrowserRequest)
-                                {
-                                    return TypedResults.Content(
-                                        WebApplication.RenderPasswordHtml(file.OriginalFileName, token, isError: false),
-                                        "text/html");
-                                }
-
-                                context.Response.Headers.Append("X-PLUCK-PASSWORD-REQUIRED", "true");
-                                return TypedResults.Unauthorized();
+                                return TypedResults.Content(
+                                    WebApplication.RenderPasswordHtml(file.OriginalFileName, token, isError: false),
+                                    "text/html");
                             }
 
-                            if (!PasswordHasher.Verify(providedPassword, file.PasswordHash!))
-                            {
-                                if (isBrowserRequest)
-                                {
-                                    return TypedResults.Content(
-                                        WebApplication.RenderPasswordHtml(file.OriginalFileName, token, isError: true),
-                                        "text/html");
-                                }
+                            context.Response.Headers.Append("X-PLUCK-AUTH-REQUIRED", "true");
+                            return TypedResults.Unauthorized();
+                        }
 
-                                return TypedResults.Unauthorized();
+                        if (!PasswordHasher.Verify(providedAuthKey, file.AuthHash))
+                        {
+                            if (isBrowserRequest)
+                            {
+                                return TypedResults.Content(
+                                    WebApplication.RenderPasswordHtml(file.OriginalFileName, token, isError: true),
+                                    "text/html");
                             }
+
+                            return TypedResults.Unauthorized();
                         }
 
                         await fileRepository.DecrementDownloadsLeft(file);
@@ -97,6 +93,8 @@ public static class DownloadEndpoints
                         {
                             context.Response.Headers.Append("X-PLUCK-IS-DIRECTORY", "true");
                         }
+                        context.Response.Headers.Append("X-Pluck-Salt", file.Salt);
+                        context.Response.Headers.Append("X-Pluck-IV", file.IV);
 
                         // Dispatch analytics event
                         var ipAddress = context.Connection.RemoteIpAddress?.ToString();

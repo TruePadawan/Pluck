@@ -42,13 +42,14 @@ public static class UploadEndpoints
                         Created<FileResponseDto>>> (
                         HttpContext context, IOptions<PluckApiOptions> apiOptions,
                         FileRepository fileRepository,
+                        [FromHeader(Name = "X-Pluck-Salt")] string salt,
+                        [FromHeader(Name = "X-Pluck-IV")] string initializationVector,
+                        [FromHeader(Name = "X-Pluck-AuthKey")] string authKey,
                         [FromHeader(Name = "X-PLUCK-TTL")] double fileTtlInHours = 24,
                         [FromHeader(Name = "X-PLUCK-MAX-DOWNLOADS")]
                         int? fileMaxDownloads = null,
                         [FromHeader(Name = "X-PLUCK-IS-DIRECTORY")]
                         bool isDirectory = false,
-                        [FromHeader(Name = "X-PLUCK-PASSWORD")]
-                        string? filePassword = null,
                         [FromHeader(Name = "X-PLUCK-TOKEN")] string? fileToken = null) =>
                     {
                         if (context.Items["User"] is not User user)
@@ -123,13 +124,12 @@ public static class UploadEndpoints
                                 }
 
                                 var fileContentType = fileSection.ContentType ?? "application/octet-stream";
-                                var passwordHash = filePassword is not null
-                                    ? PasswordHasher.Hash(filePassword)
-                                    : null;
+                                var authHash = PasswordHasher.Hash(authKey);
                                 var fileDto = new CreateFileDto(user.Id, finalToken, diskFileName,
                                     originalFileName,
                                     fileContentType, fileSize,
-                                    fileTtlInHours, fileMaxDownloads, isDirectory, passwordHash);
+                                    fileTtlInHours, fileMaxDownloads, isDirectory, authHash, salt,
+                                    initializationVector);
                                 // Save the file entry in the database
                                 var file = await fileRepository.CreateFile(fileDto);
 

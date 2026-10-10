@@ -14,5 +14,7 @@ public class FileParams
     public int? DownloadsLeft { get; init; }
     public required DateTime ExpiresAt { get; init; }
     public bool IsDirectory { get; init; }
-    public string? PasswordHash { get; init; }
+    public required string AuthHash { get; init; }
+    public required string Salt { get; init; }
+    public required string IV { get; init; }
 }

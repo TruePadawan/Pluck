@@ -24,7 +24,9 @@ public class FileRepository(AppDbContext db)
             DownloadsLeft = fileDto.MaxDownloads,
             ExpiresAt = fileExpiryDate,
             IsDirectory = fileDto.IsDirectory,
-            PasswordHash = fileDto.PasswordHash
+            AuthHash = fileDto.AuthHash,
+            Salt = fileDto.Salt,
+            IV = fileDto.IV
         });
         db.Files.Add(fileEntry);
         await db.SaveChangesAsync();
