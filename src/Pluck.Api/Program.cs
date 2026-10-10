@@ -16,6 +16,7 @@ builder.Services.AddScoped<UserRepository>();
 builder.Services.AddScoped<FileRepository>();
 builder.Services.AddSingleton<IAnalyticsQueue, AnalyticsQueue>();
 builder.Services.AddHostedService<FileCleanupBackgroundService>();
+builder.Services.AddHostedService<AnalyticsBackgroundService>();
 builder.WebHost.ConfigureKestrel(options =>
 {
     options.Limits.MaxRequestBodySize = 10L * 1024 * 1024 * 1024; // 10GB

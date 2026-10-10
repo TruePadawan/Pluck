@@ -6,6 +6,8 @@ using Pluck.Api.Repositories;
 using Pluck.Api.Security;
 using Pluck.Api.Utils;
 using Pluck.Shared.Dtos;
+using Pluck.Api.Services.Analytics;
+using Pluck.Shared.Models.Events;
 
 namespace Pluck.Api.Endpoints;
 
@@ -34,6 +36,7 @@ public static class DownloadEndpoints
                         FileStreamHttpResult>> (
                         string token,
                         FileRepository fileRepository, IOptions<PluckApiOptions> apiOptions, HttpContext context,
+                        IAnalyticsQueue analyticsQueue,
                         [FromHeader(Name = "X-PLUCK-PASSWORD")]
                         string? headerPassword = null) =>
                     {
@@ -94,6 +97,17 @@ public static class DownloadEndpoints
                         {
                             context.Response.Headers.Append("X-PLUCK-IS-DIRECTORY", "true");
                         }
+
+                        // Dispatch analytics event
+                        var ipAddress = context.Connection.RemoteIpAddress?.ToString();
+                        var userAgent = context.Request.Headers.UserAgent.ToString();
+                        
+                        var clientType = ClientType.Unknown;
+                        if (userAgent.Contains("PluckCli", StringComparison.OrdinalIgnoreCase)) clientType = ClientType.PluckCli;
+                        else if (userAgent.Contains("curl", StringComparison.OrdinalIgnoreCase) || userAgent.Contains("Wget", StringComparison.OrdinalIgnoreCase)) clientType = ClientType.Script;
+                        else if (userAgent.Contains("Mozilla", StringComparison.OrdinalIgnoreCase)) clientType = ClientType.Browser;
+
+                        await analyticsQueue.QueueAsync(new DownloadAnalyticsMessage(file.Id, ipAddress, userAgent, clientType));
 
                         // Stream the file from the disk
                         var filePath = Path.Combine(config.UploadDirectory, file.DiskFileName);
