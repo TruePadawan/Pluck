@@ -16,6 +16,10 @@ public class FileCommandSettings : CommandSettings
     [CommandArgument(0, "<token>")]
     [Description("The token of the file to retrieve")]
     public required string Token { get; set; }
+
+    [CommandOption("-a|--analytics")]
+    [Description("Show the file's analytics instead of general details")]
+    public bool Analytics { get; set; }
 }
 
 public class FileCommand : AsyncCommand<FileCommandSettings>
@@ -31,49 +35,87 @@ public class FileCommand : AsyncCommand<FileCommandSettings>
             PluckHttpClient.BaseAddress = new Uri(pluckConfig.ServerUrl);
             PluckHttpClient.DefaultRequestHeaders.Add("X-PLUCK-API-KEY", pluckConfig.ApiUrl);
 
-            FileResponseDto? file = null;
+            if (settings.Analytics)
+            {
+                FileAnalyticsDto? analytics = null;
+                await AnsiConsole.Status()
+                    .Spinner(Spinner.Known.Dots)
+                    .SpinnerStyle(new Style(Color.DodgerBlue1))
+                    .StartAsync("Fetching file analytics...", async _ =>
+                    {
+                        var response = await PluckHttpClient.GetAsync($"/api/files/{Uri.EscapeDataString(settings.Token)}/analytics");
 
-            await AnsiConsole.Status()
-                .Spinner(Spinner.Known.Dots)
-                .SpinnerStyle(new Style(Color.DodgerBlue1))
-                .StartAsync("Fetching file details...", async _ =>
+                        if (!response.IsSuccessStatusCode)
+                        {
+                            if (response.StatusCode == HttpStatusCode.Unauthorized)
+                            {
+                                throw new Exception("You're not authorized to view this file.");
+                            }
+
+                            if (response.StatusCode == HttpStatusCode.NotFound)
+                            {
+                                throw new Exception("File not found. It may have expired or been deleted.");
+                            }
+
+                            var errorResponse = await response.Content.ReadFromJsonAsync<ErrorResponseDto>();
+                            throw new Exception(errorResponse?.Error);
+                        }
+
+                        analytics = await response.Content.ReadFromJsonAsync<FileAnalyticsDto>();
+                        if (analytics is null)
+                        {
+                            throw new Exception("Unable to parse file analytics");
+                        }
+                    });
+
+                SpectreOutput.FileAnalytics(analytics!);
+            }
+            else
+            {
+                FileResponseDto? file = null;
+
+                await AnsiConsole.Status()
+                    .Spinner(Spinner.Known.Dots)
+                    .SpinnerStyle(new Style(Color.DodgerBlue1))
+                    .StartAsync("Fetching file details...", async _ =>
+                    {
+                        var response = await PluckHttpClient.GetAsync($"/api/files/{Uri.EscapeDataString(settings.Token)}");
+
+                        if (!response.IsSuccessStatusCode)
+                        {
+                            if (response.StatusCode == HttpStatusCode.Unauthorized)
+                            {
+                                throw new Exception("You're not authorized to view this file.");
+                            }
+
+                            if (response.StatusCode == HttpStatusCode.NotFound)
+                            {
+                                throw new Exception("File not found. It may have expired or reached its download limit.");
+                            }
+
+                            var errorResponse = await response.Content.ReadFromJsonAsync<ErrorResponseDto>();
+                            throw new Exception(errorResponse?.Error);
+                        }
+
+                        file = await response.Content.ReadFromJsonAsync<FileResponseDto>();
+                        if (file is null)
+                        {
+                            throw new Exception("Unable to parse file details");
+                        }
+                    });
+
+                try
                 {
-                    var response = await PluckHttpClient.GetAsync($"/api/files/{Uri.EscapeDataString(settings.Token)}");
+                    ClipboardHelper.Copy(file!.DownloadUrl);
+                    SpectreOutput.Copied("Download URL");
+                }
+                catch (Exception e)
+                {
+                    SpectreOutput.Warn($"Failed to copy download url to clipboard: {e.Message}");
+                }
 
-                    if (!response.IsSuccessStatusCode)
-                    {
-                        if (response.StatusCode == HttpStatusCode.Unauthorized)
-                        {
-                            throw new Exception("You're not authorized to view this file.");
-                        }
-
-                        if (response.StatusCode == HttpStatusCode.NotFound)
-                        {
-                            throw new Exception("File not found. It may have expired or reached its download limit.");
-                        }
-
-                        var errorResponse = await response.Content.ReadFromJsonAsync<ErrorResponseDto>();
-                        throw new Exception(errorResponse?.Error);
-                    }
-
-                    file = await response.Content.ReadFromJsonAsync<FileResponseDto>();
-                    if (file is null)
-                    {
-                        throw new Exception("Unable to parse file details");
-                    }
-                });
-
-            try
-            {
-                ClipboardHelper.Copy(file!.DownloadUrl);
-                SpectreOutput.Copied("Download URL");
+                SpectreOutput.FileDetail(file!);
             }
-            catch (Exception e)
-            {
-                SpectreOutput.Warn($"Failed to copy download url to clipboard: {e.Message}");
-            }
-
-            SpectreOutput.FileDetail(file!);
             return 0;
         }
         catch (Exception e)

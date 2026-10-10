@@ -78,6 +78,50 @@ public static class SpectreOutput
         AnsiConsole.Write(outerGrid);
     }
 
+    /// <summary>
+    /// Renders the file's analytics data.
+    /// </summary>
+    public static void FileAnalytics(FileAnalyticsDto analytics)
+    {
+        var mainGrid = new Grid();
+        mainGrid.AddColumn(new GridColumn().PadRight(2));
+        mainGrid.AddColumn();
+
+        mainGrid.AddRow("[bold]Total Downloads[/]", analytics.TotalDownloads.ToString());
+
+        var clientChart = new BarChart()
+            .Width(60)
+            .Label("[green bold]Client Types[/]")
+            .CenterLabel();
+
+        foreach (var (client, count) in analytics.ClientTypes)
+        {
+            clientChart.AddItem(client, count, Color.DodgerBlue1);
+        }
+
+        var countryChart = new BarChart()
+            .Width(60)
+            .Label("[green bold]Countries[/]")
+            .CenterLabel();
+
+        foreach (var (country, count) in analytics.Countries)
+        {
+            countryChart.AddItem(country, count, Color.Purple);
+        }
+
+        mainGrid.AddRow(new Text(""));
+        mainGrid.AddRow(new Markup("[bold]Client Distribution[/]"), clientChart);
+        mainGrid.AddRow(new Text(""));
+        mainGrid.AddRow(new Markup("[bold]Country Distribution[/]"), countryChart);
+
+        var panel = new Panel(mainGrid)
+            .Header("[bold dodgerblue1]File Analytics[/]")
+            .Border(BoxBorder.Rounded)
+            .BorderStyle(new Style(Color.DodgerBlue1));
+
+        AnsiConsole.Write(panel);
+    }
+
     // File Table
 
     /// <summary>
