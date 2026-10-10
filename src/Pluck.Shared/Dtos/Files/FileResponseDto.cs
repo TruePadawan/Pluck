@@ -8,6 +8,5 @@ public record FileResponseDto(
     string DownloadUrl,
     long Size,
     bool IsDirectory,
-    bool IsPasswordProtected,
     int DownloadCount
 );

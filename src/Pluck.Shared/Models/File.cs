@@ -15,11 +15,16 @@ public sealed class File : EntityBase
     public int? DownloadsLeft { get; private set; }
     public DateTime ExpiresAt { get; private set; }
     public bool IsDirectory { get; private set; }
-    public string? PasswordHash { get; private set; }
     public int DownloadCount { get; private set; }
     public ICollection<FileDownloadEvents> DownloadEvents { get; private set; }
 
-    public bool IsPasswordProtected => PasswordHash is not null;
+    public string AuthHash { get; private set; }
+
+    // Base64 encoded Salt used for PBKDF2
+    public string Salt { get; private set; }
+
+    // The Base64 encoded Initialization Vector for AES
+    public string IV { get; private set; }
 
     // For ORM frameworks
     private File()
@@ -33,9 +38,11 @@ public sealed class File : EntityBase
         DownloadsLeft = null;
         ExpiresAt = DateTime.UtcNow;
         IsDirectory = false;
-        PasswordHash = null;
         DownloadCount = 0;
         DownloadEvents = [];
+        AuthHash = string.Empty;
+        Salt = string.Empty;
+        IV = string.Empty;
     }
 
     private File(FileParams p)
@@ -49,7 +56,9 @@ public sealed class File : EntityBase
         DownloadsLeft = p.DownloadsLeft;
         ExpiresAt = p.ExpiresAt;
         IsDirectory = p.IsDirectory;
-        PasswordHash = p.PasswordHash;
+        AuthHash = p.AuthHash;
+        Salt = p.Salt;
+        IV = p.IV;
         DownloadCount = 0;
         DownloadEvents = [];
     }
@@ -72,7 +81,9 @@ public sealed class File : EntityBase
         DownloadsLeft = p.DownloadsLeft;
         ExpiresAt = p.ExpiresAt;
         IsDirectory = p.IsDirectory;
-        PasswordHash = p.PasswordHash;
+        AuthHash = p.AuthHash;
+        Salt = p.Salt;
+        IV = p.IV;
 
         UpdateLastModified();
     }
@@ -118,5 +129,11 @@ public sealed class File : EntityBase
             throw new ArgumentException("The number of downloads left cannot be negative", nameof(p.DownloadsLeft));
         if (p.ExpiresAt < DateTime.UtcNow)
             throw new ArgumentException("File expiration date cannot be in the past");
+        if (string.IsNullOrWhiteSpace(p.AuthHash))
+            throw new ArgumentException("AuthHash cannot be null or empty", nameof(p.AuthHash));
+        if (string.IsNullOrWhiteSpace(p.Salt))
+            throw new ArgumentException("Salt cannot be null or empty", nameof(p.Salt));
+        if (string.IsNullOrWhiteSpace(p.IV))
+            throw new ArgumentException("IV cannot be null or empty", nameof(p.IV));
     }
 };

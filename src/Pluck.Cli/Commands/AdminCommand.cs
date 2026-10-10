@@ -109,6 +109,15 @@ public class AdminCommand : AsyncCommand<AdminCommandSettings>
                         if (createdUser != null)
                         {
                             SpectreOutput.Success($"User '{createdUser.Name}' created.");
+                            try
+                            {
+                                ClipboardHelper.Copy(createdUser.ApiKey);
+                                SpectreOutput.Copied("API Key");
+                            }
+                            catch (Exception e)
+                            {
+                                SpectreOutput.Warn($"Failed to copy API Key to clipboard: {e.Message}");
+                            }
                             SpectreOutput.ApiKeyPanel(createdUser.ApiKey);
                         }
                     }
