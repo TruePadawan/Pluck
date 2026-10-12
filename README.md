@@ -1,7 +1,8 @@
 # Pluck
 
-Pluck is a lightweight, self-hosted ephemeral file-sharing application.  
-It consists of a self-hosted ASP.NET Core Web API and a feature-rich C# CLI client with Spectre.Console UI formatting,
+Pluck is a lightweight, self-hosted ephemeral file-sharing application built with a Zero-Knowledge security model.  
+It consists of a self-hosted ASP.NET Core Web API and a feature-rich C# CLI client featuring client-side AES-256 encryption,
+Spectre.Console UI formatting, terminal QR codes, download analytics, an interactive Admin TUI dashboard,
 file upload/download progress tracking, and clipboard integration.
 
 ---
@@ -21,6 +22,7 @@ file upload/download progress tracking, and clipboard integration.
     - [pluck file](#pluck-file)
     - [pluck purge](#pluck-purge)
     - [pluck key-gen](#pluck-key-gen)
+    - [pluck admin](#pluck-admin-admin-only)
     - [pluck users](#pluck-users-admin-only)
     - [pluck create-user](#pluck-create-user-admin-only)
     - [pluck revoke-user](#pluck-revoke-user-admin-only)
@@ -35,16 +37,13 @@ file upload/download progress tracking, and clipboard integration.
 
 ## How Pluck Works
 
-Pluck is designed for temporary file sharing with automatic lifecycle management and zero maintenance:
+Pluck is designed for temporary file sharing with zero maintenance and a **Zero-Knowledge security architecture**:
 
-1. **Upload & Configure Expiry:** When sharing a file via `pluck share`, you set an optional Time-To-Live (`--ttl` in
-   hours, default 24 hours), an optional maximum download count (`--downloads`) or an optional password (`--pwd`)
-   to secure the file.
-2. **Instant Link Generation:** The server generates a unique download token and link, which the CLI automatically
-   copies to your system clipboard.
-3. **Automated Background Cleanup:** The Pluck API runs an automated background cleanup worker every 10 minutes.
-4. **Permanent File Purging:** A file is immediately rendered unavailable and permanently purged from both disk storage
-   and the database as soon as:
+1. **Client-Side Encryption:** Every file or folder uploaded via `pluck share` is encrypted client-side using AES-256 before leaving your machine. If no custom password (`--pwd`) is provided, a 16-character encryption key is generated automatically and appended to the download URL fragment (`#<key>`). The server never receives or stores your plaintext files or encryption keys.
+2. **Upload & Lifecycle Configuration:** Set an optional Time-To-Live (`--ttl` in hours, default 24 hours), maximum download count (`--downloads`), custom vanity token (`--token`), or a custom encryption password (`--pwd`).
+3. **Instant Link & QR Generation:** The server returns the unique token and download link, which the CLI automatically copies to your clipboard and renders as a scannable terminal QR code.
+4. **Automated Background Cleanup & Analytics:** The Pluck API runs an automated background cleanup worker every 10 minutes, while logging download counts and client/geographic analytics.
+5. **Permanent File Purging:** A file is immediately rendered unavailable and permanently purged from disk storage and the database as soon as:
 
 - Its Time-To-Live (TTL) expires, or
 - Its remaining download limit reaches zero.
@@ -103,28 +102,31 @@ pluck config --server <SERVER_URL> --key <API_KEY>
 
 ### `pluck share`
 
-Uploads a file or folder to the configured Pluck server with real-time transfer speed and progress tracking.
-Automatically copies the generated download URL to the clipboard.
+Encrypts and uploads a file or folder to the configured Pluck server with real-time transfer speed and progress tracking. Automatically copies the generated download URL to the clipboard and renders a scannable QR code in your terminal.
 
 ```bash
-pluck share <filepath> [--ttl <hours>] [--downloads <count>] [--pwd <password>]
+pluck share <filepath> [--ttl <hours>] [--downloads <count>] [--pwd <password>] [--token <token>]
 ```
 
 **Arguments:**
 
-- `<filepath>` *(Required)*: The path to the local file/folder to upload.
+- `<filepath>` *(Required)*: The path to the local file/folder to upload. Folders are automatically compressed into `.zip` archives before encryption and upload.
 
 **Options:**
 
 - `--ttl <hours>` *(Default: `24`)*: Time-to-live for the file in hours.
 - `--downloads <count>` *(Optional)*: Maximum allowed downloads before the file automatically expires.
-- `--pwd <password>` *(Optional)*: Password to secure the file with.
+- `--pwd <password>` *(Optional)*: Custom password used to derive AES-256 encryption keys. If omitted, a cryptographically random 16-character key is generated and appended to the download URL fragment (`#<key>`).
+- `--token <token>` *(Optional)*: Custom vanity token to use instead of a randomly generated token. The CLI checks availability with the server and prompts for an alternative if taken.
+
+> [!WARNING]
+> Because Pluck uses a Zero-Knowledge model, the server does not store encryption passwords or keys. If you lose the download URL fragment (`#<key>`) or forget your custom password, the file is permanently unrecoverable.
 
 ---
 
 ### `pluck get`
 
-Downloads a file or folder from a Pluck instance URL with real-time progress tracking.
+Downloads and decrypts a file or folder from a Pluck instance URL with real-time progress tracking. If the downloaded item is a folder archive, it is automatically extracted.
 
 ```bash
 pluck get <url> [--save-dir <directory>] [--pwd <password>]
@@ -132,19 +134,18 @@ pluck get <url> [--save-dir <directory>] [--pwd <password>]
 
 **Arguments:**
 
-- `<url>` *(Required)*: The full download URL of the file to retrieve.
+- `<url>` *(Required)*: The full download URL of the file to retrieve. If the URL contains an anchor fragment (e.g., `https://pluck.example.com/f/token#key`), the decryption key is automatically extracted and used.
 
 **Options:**
 
-- `--save-dir <dir>` *(Optional)*: The output directory to save the file/folder into. Defaults to the current working
-  directory.
-- `--pwd <password>` *(Optional)*: Password to decrypt the file with.
+- `--save-dir <dir>` *(Optional)*: The output directory to save the file/folder into. Defaults to the current working directory.
+- `--pwd <password>` *(Optional)*: Password to decrypt the file with. If the file was encrypted with a custom password and this option is omitted, the CLI will securely prompt for the password interactively.
 
 ---
 
 ### `pluck list`
 
-Lists active (unexpired) files on the connected Pluck instance.
+Lists active (unexpired) files on the connected Pluck instance in a styled table displaying tokens, file names, sizes, downloads left, total download counts, expiration timestamps, and download URLs.
 
 ```bash
 pluck list [--name <username>]
@@ -158,15 +159,19 @@ pluck list [--name <username>]
 
 ### `pluck file`
 
-Displays detailed metadata for a specific file using its token, and copies the download URL to the clipboard.
+Displays detailed metadata (including file size, download metrics, expiration, and an inline QR code) for a specific file using its token, and copies the download URL to the clipboard. Can also display download analytics.
 
 ```bash
-pluck file <token>
+pluck file <token> [-a|--analytics]
 ```
 
 **Arguments:**
 
 - `<token>` *(Required)*: The unique token identifier of the file.
+
+**Options:**
+
+- `-a, --analytics` *(Optional)*: Fetches and displays download analytics instead of general file details, including total downloads, client distribution (bar chart), and geographic country distribution (bar chart).
 
 ---
 
@@ -192,6 +197,22 @@ for creating initial admin keys or new user credentials.
 ```bash
 pluck key-gen
 ```
+
+---
+
+### `pluck admin` *(Admin Only)*
+
+Launches an interactive Spectre.Console TUI Admin Dashboard for managing the Pluck instance directly from your terminal.
+
+```bash
+pluck admin
+```
+
+**Dashboard Modules:**
+
+- **User Management**: Interactively browse registered users, create new user accounts (with automatic API key copying), or revoke/delete user accounts.
+- **File Analytics**: Look up any file by its token to view total downloads, client type distribution charts, and country/geographic analytics.
+- **Storage Graphs**: View instance-wide storage usage, active file counts, and a visual breakdown chart comparing active storage against expired/depleted storage.
 
 ---
 
@@ -224,7 +245,7 @@ pluck create-user <name>
 Revokes and deletes a user account from the server. Prompts for confirmation before proceeding.
 
 ```bash
-pluck revoke-user <name> [--force]
+pluck revoke-user <name> [-f|--force]
 ```
 
 **Arguments:**
@@ -233,7 +254,7 @@ pluck revoke-user <name> [--force]
 
 **Options:**
 
-- `--force` *(Optional)*: Skips the interactive confirmation prompt.
+- `-f, --force` *(Optional)*: Skips the interactive confirmation prompt.
 
 ---
 
