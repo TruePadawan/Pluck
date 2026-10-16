@@ -5,6 +5,7 @@ using Pluck.Cli.Utils;
 
 var app = new CommandApp();
 
+// Read https://github.com/TruePadawan/Pluck/issues/7 to understand security model
 app.Configure(config =>
 {
     config.SetApplicationName("pluck");
