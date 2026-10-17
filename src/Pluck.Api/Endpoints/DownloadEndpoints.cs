@@ -90,7 +90,6 @@ public static class DownloadEndpoints
                             return TypedResults.Unauthorized();
                         }
 
-                        await fileRepository.DecrementDownloadsLeft(file);
                         if (file.IsDirectory)
                         {
                             context.Response.Headers.Append("X-PLUCK-IS-DIRECTORY", "true");
@@ -114,7 +113,8 @@ public static class DownloadEndpoints
 
                         // Stream the file from the disk
                         var filePath = Path.Combine(config.UploadDirectory, file.DiskFileName);
-                        var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read);
+                        var fileStream = new CompletionTrackingFileStream(filePath, FileMode.Open, FileAccess.Read,
+                            async () => await fileRepository.DecrementDownloadsLeft(file));
                         return TypedResults.File(fileStream, file.ContentType, file.OriginalFileName,
                             enableRangeProcessing: true);
                     })
