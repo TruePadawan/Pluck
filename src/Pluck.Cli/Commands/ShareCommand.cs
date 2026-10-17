@@ -49,125 +49,10 @@ public class ShareCommand : AsyncCommand<ShareCommandSettings>
         string? tempZipPath = null;
         try
         {
-            var pluckConfig = PluckConfigManager.GetConfigOrThrow();
-
-            PluckHttpClient.BaseAddress = new Uri(pluckConfig.ServerUrl);
-            PluckHttpClient.DefaultRequestHeaders.Add("X-PLUCK-API-KEY", pluckConfig.ApiUrl);
-            // If a custom token was specified, check that it is unique and valid
-            await ValidateCustomToken(settings.Token);
-
-            PluckHttpClient.DefaultRequestHeaders.Add("X-PLUCK-TTL",
-                settings.Ttl.ToString(CultureInfo.InvariantCulture));
-            if (settings.Downloads.HasValue)
-            {
-                PluckHttpClient.DefaultRequestHeaders.Add("X-PLUCK-MAX-DOWNLOADS",
-                    settings.Downloads.Value.ToString(CultureInfo.InvariantCulture));
-            }
-
-
-            var password = settings.Password ?? SharedUtilities.GenerateId(16);
-            var salt = SecurityUtilities.GenerateSalt();
-            var (encryptionKey, authKey) = SecurityUtilities.DeriveKeys(password, salt);
-            var (IV, encryptor) = SecurityUtilities.SetupEncryption(encryptionKey);
-
-            var saltBase64 = Convert.ToBase64String(salt);
-            var IVBase64 = Convert.ToBase64String(IV);
-            var authKeyBase64 = Convert.ToBase64String(authKey);
-
-            PluckHttpClient.DefaultRequestHeaders.Add("X-Pluck-Salt", saltBase64);
-            PluckHttpClient.DefaultRequestHeaders.Add("X-Pluck-IV", IVBase64);
-            PluckHttpClient.DefaultRequestHeaders.Add("X-Pluck-AuthKey", authKeyBase64);
-
-            var absoluteItemPath = Path.GetFullPath(settings.ItemPath);
-            if (Directory.Exists(absoluteItemPath))
-            {
-                // Zip the folder and extract its info
-                var directoryInfo = new DirectoryInfo(absoluteItemPath);
-                tempZipPath = Path.Combine(Path.GetTempPath(), $"{directoryInfo.Name}.zip");
-                await ZipFile.CreateFromDirectoryAsync(absoluteItemPath, tempZipPath, CompressionLevel.Fastest, true,
-                    cancellationToken);
-                absoluteItemPath = tempZipPath;
-                // Add header that tells the backend that a folder is being uploaded
-                PluckHttpClient.DefaultRequestHeaders.Add("X-PLUCK-IS-DIRECTORY", "true");
-            }
-
-            var fileName = Path.GetFileName(absoluteItemPath);
-            var fileSize = new FileInfo(absoluteItemPath).Length;
-
-            FileResponseDto? successResponse = null;
-
-            await AnsiConsole.Progress()
-                .Columns(
-                    new TaskDescriptionColumn(),
-                    new ProgressBarColumn(),
-                    new PercentageColumn(),
-                    new TransferSpeedColumn(),
-                    new RemainingTimeColumn())
-                .StartAsync(async ctx =>
-                {
-                    var uploadTask = ctx.AddTask($"Uploading [bold]{Markup.Escape(fileName)}[/]",
-                        maxValue: fileSize);
-
-                    await using var fileStream = File.OpenRead(absoluteItemPath);
-
-                    // Create a crypto stream for reading from the filestream and encrypting the data
-                    await using var cryptoStream = new CryptoStream(fileStream, encryptor, CryptoStreamMode.Read);
-                    await using var progressStream = new ProgressStream(cryptoStream,
-                        bytesRead => uploadTask.Increment(bytesRead));
-                    using var fileContent = new StreamContent(progressStream);
-
-                    // Set the content-type of the file
-                    var fileMimeType = MimeUtility.GetMimeMapping(absoluteItemPath);
-                    fileContent.Headers.ContentType = new MediaTypeHeaderValue(fileMimeType);
-
-                    using var form = new MultipartFormDataContent();
-                    // Attach file to form body
-                    form.Add(fileContent, "file", fileName);
-
-                    var response = await PluckHttpClient.PostAsync("/api/upload", form, cancellationToken);
-                    if (!response.IsSuccessStatusCode)
-                    {
-                        if (response.StatusCode == HttpStatusCode.Unauthorized)
-                        {
-                            throw new Exception(
-                                "You're not authorized to upload to this Pluck instance. Please contact the server admin.");
-                        }
-
-                        var errorResponse =
-                            await response.Content.ReadFromJsonAsync<ErrorResponseDto>(
-                                cancellationToken: cancellationToken);
-                        throw new Exception(errorResponse?.Error);
-                    }
-
-                    successResponse =
-                        await response.Content.ReadFromJsonAsync<FileResponseDto>(cancellationToken: cancellationToken);
-                    if (successResponse is null)
-                    {
-                        throw new Exception("Unable to parse file info");
-                    }
-
-                    // Ensure the progress bar reaches 100%
-                    uploadTask.Value = uploadTask.MaxValue;
-                });
-
-            var isAutoGenerated = settings.Password == null;
-            var finalDownloadUrl = isAutoGenerated
-                ? $"{successResponse!.DownloadUrl}#{password}"
-                : successResponse!.DownloadUrl;
-
-            try
-            {
-                ClipboardHelper.Copy(finalDownloadUrl);
-                SpectreOutput.Copied("Download URL");
-            }
-            catch (Exception e)
-            {
-                SpectreOutput.Warn($"Failed to copy download url to clipboard: {e.Message}");
-            }
-
-            var fileDetail = successResponse with { DownloadUrl = finalDownloadUrl };
-            SpectreOutput.FileDetail(fileDetail);
-            SpectreOutput.ZeroKnowledgeWarning(isAutoGenerated);
+            var info = await SetupUploadAsync(settings, cancellationToken);
+            tempZipPath = info.TempZipPath;
+            var successResponse = await UploadFileAsync(info, cancellationToken);
+            OutputUploadResult(successResponse, info.Password, settings.Password);
             return 0;
         }
         catch (Exception e)
@@ -184,6 +69,171 @@ public class ShareCommand : AsyncCommand<ShareCommandSettings>
                 File.Delete(tempZipPath);
             }
         }
+    }
+
+    /// <summary>
+    /// Configures the HTTP client, validates custom tokens, sets up encryption, and prepares the file for upload.
+    /// </summary>
+    private static async Task<UploadInfo> SetupUploadAsync(ShareCommandSettings settings,
+        CancellationToken cancellationToken)
+    {
+        var pluckConfig = PluckConfigManager.GetConfigOrThrow();
+
+        PluckHttpClient.BaseAddress = new Uri(pluckConfig.ServerUrl);
+        PluckHttpClient.DefaultRequestHeaders.Add("X-PLUCK-API-KEY", pluckConfig.ApiUrl);
+        await ValidateCustomToken(settings.Token);
+
+        PluckHttpClient.DefaultRequestHeaders.Add("X-PLUCK-TTL",
+            settings.Ttl.ToString(CultureInfo.InvariantCulture));
+        if (settings.Downloads.HasValue)
+        {
+            PluckHttpClient.DefaultRequestHeaders.Add("X-PLUCK-MAX-DOWNLOADS",
+                settings.Downloads.Value.ToString(CultureInfo.InvariantCulture));
+        }
+
+        var (password, encryptor) = SetupEncryptionAsync(settings.Password);
+        var absoluteItemPath = PrepareFileForUpload(settings.ItemPath);
+        var (tempZipPath, fileName, fileSize) = ExtractFileInfo(absoluteItemPath, settings.ItemPath);
+
+        if (tempZipPath != null)
+        {
+            PluckHttpClient.DefaultRequestHeaders.Add("X-PLUCK-IS-DIRECTORY", "true");
+        }
+
+        return new UploadInfo(absoluteItemPath, fileName, fileSize, encryptor, password, tempZipPath);
+    }
+
+    /// <summary>
+    /// Derives encryption keys from the password and configures the encryption headers.
+    /// </summary>
+    private static (string Password, ICryptoTransform Encryptor) SetupEncryptionAsync(string? password)
+    {
+        password = password ?? SharedUtilities.GenerateId(16);
+        var salt = SecurityUtilities.GenerateSalt();
+        var (encryptionKey, authKey) = SecurityUtilities.DeriveKeys(password, salt);
+        var (IV, encryptor) = SecurityUtilities.SetupEncryption(encryptionKey);
+
+        var saltBase64 = Convert.ToBase64String(salt);
+        var IVBase64 = Convert.ToBase64String(IV);
+        var authKeyBase64 = Convert.ToBase64String(authKey);
+
+        PluckHttpClient.DefaultRequestHeaders.Add("X-Pluck-Salt", saltBase64);
+        PluckHttpClient.DefaultRequestHeaders.Add("X-Pluck-IV", IVBase64);
+        PluckHttpClient.DefaultRequestHeaders.Add("X-Pluck-AuthKey", authKeyBase64);
+
+        return (password, encryptor);
+    }
+
+    /// <summary>
+    /// Resolves the file path, zipping directories if necessary.
+    /// </summary>
+    private static string PrepareFileForUpload(string itemPath)
+    {
+        var absoluteItemPath = Path.GetFullPath(itemPath);
+        if (Directory.Exists(absoluteItemPath))
+        {
+            var directoryInfo = new DirectoryInfo(absoluteItemPath);
+            var tempZipPath = Path.Combine(Path.GetTempPath(), $"{directoryInfo.Name}.zip");
+            ZipFile.CreateFromDirectory(absoluteItemPath, tempZipPath, CompressionLevel.Fastest, true);
+            absoluteItemPath = tempZipPath;
+        }
+        return absoluteItemPath;
+    }
+
+    /// <summary>
+    /// Extracts file metadata from the prepared file path.
+    /// </summary>
+    private static (string? TempZipPath, string FileName, long FileSize) ExtractFileInfo(
+        string absoluteItemPath, string originalItemPath)
+    {
+        var tempZipPath = Directory.Exists(originalItemPath) ? absoluteItemPath : null;
+        var fileName = Path.GetFileName(absoluteItemPath);
+        var fileSize = new FileInfo(absoluteItemPath).Length;
+        return (tempZipPath, fileName, fileSize);
+    }
+
+    /// <summary>
+    /// Uploads the file with encryption and progress indication.
+    /// </summary>
+    private static async Task<FileResponseDto> UploadFileAsync(UploadInfo info, CancellationToken cancellationToken)
+    {
+        FileResponseDto? successResponse = null;
+
+        await AnsiConsole.Progress()
+            .Columns(
+                new TaskDescriptionColumn(),
+                new ProgressBarColumn(),
+                new PercentageColumn(),
+                new TransferSpeedColumn(),
+                new RemainingTimeColumn())
+            .StartAsync(async ctx =>
+            {
+                var uploadTask = ctx.AddTask($"Uploading [bold]{Markup.Escape(info.FileName)}[/]",
+                    maxValue: info.FileSize);
+
+                await using var fileStream = File.OpenRead(info.AbsoluteItemPath);
+                await using var cryptoStream = new CryptoStream(fileStream, info.Encryptor, CryptoStreamMode.Read);
+                await using var progressStream = new ProgressStream(cryptoStream,
+                    bytesRead => uploadTask.Increment(bytesRead));
+                using var fileContent = new StreamContent(progressStream);
+
+                var fileMimeType = MimeUtility.GetMimeMapping(info.AbsoluteItemPath);
+                fileContent.Headers.ContentType = new MediaTypeHeaderValue(fileMimeType);
+
+                using var form = new MultipartFormDataContent();
+                form.Add(fileContent, "file", info.FileName);
+
+                var response = await PluckHttpClient.PostAsync("/api/upload", form, cancellationToken);
+                if (!response.IsSuccessStatusCode)
+                {
+                    if (response.StatusCode == HttpStatusCode.Unauthorized)
+                    {
+                        throw new Exception(
+                            "You're not authorized to upload to this Pluck instance. Please contact the server admin.");
+                    }
+
+                    var errorResponse =
+                        await response.Content.ReadFromJsonAsync<ErrorResponseDto>(
+                            cancellationToken: cancellationToken);
+                    throw new Exception(errorResponse?.Error);
+                }
+
+                successResponse =
+                    await response.Content.ReadFromJsonAsync<FileResponseDto>(cancellationToken: cancellationToken);
+                if (successResponse is null)
+                {
+                    throw new Exception("Unable to parse file info");
+                }
+
+                uploadTask.Value = uploadTask.MaxValue;
+            });
+
+        return successResponse!;
+    }
+
+    /// <summary>
+    /// Outputs the download URL, file details, and zero-knowledge warning.
+    /// </summary>
+    private static void OutputUploadResult(FileResponseDto successResponse, string password, string? originalPassword)
+    {
+        var isAutoGenerated = originalPassword == null;
+        var finalDownloadUrl = isAutoGenerated
+            ? $"{successResponse.DownloadUrl}#{password}"
+            : successResponse.DownloadUrl;
+
+        try
+        {
+            ClipboardHelper.Copy(finalDownloadUrl);
+            SpectreOutput.Copied("Download URL");
+        }
+        catch (Exception e)
+        {
+            SpectreOutput.Warn($"Failed to copy download url to clipboard: {e.Message}");
+        }
+
+        var fileDetail = successResponse with { DownloadUrl = finalDownloadUrl };
+        SpectreOutput.FileDetail(fileDetail);
+        SpectreOutput.ZeroKnowledgeWarning(isAutoGenerated);
     }
 
     /// <summary>
@@ -249,3 +299,14 @@ public class ShareCommand : AsyncCommand<ShareCommandSettings>
         }
     }
 }
+
+/// <summary>
+/// Carries all metadata needed for an upload operation between the setup, upload, and output phases.
+/// </summary>
+internal record UploadInfo(
+    string AbsoluteItemPath,
+    string FileName,
+    long FileSize,
+    ICryptoTransform Encryptor,
+    string Password,
+    string? TempZipPath);
