@@ -22,21 +22,25 @@ builder.WebHost.ConfigureKestrel(options =>
 {
     options.Limits.MaxRequestBodySize = 10L * 1024 * 1024 * 1024; // 10GB
 });
+
 // An exception thrown in the background service will not cause the host to exit
 builder.Services.Configure<HostOptions>(options =>
 {
     options.BackgroundServiceExceptionBehavior = BackgroundServiceExceptionBehavior.Ignore;
 });
+
 builder.Services.AddDbContext<AppDbContext>(options =>
 {
     var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
     options.UseSqlite(connectionString);
 });
+
 // Ensure environment variables are set and loaded
 builder.Services.AddOptions<PluckApiOptions>()
     .Bind(builder.Configuration.GetSection(PluckApiOptions.SectionName))
     .ValidateDataAnnotations()
     .ValidateOnStart();
+
 builder.Services.AddApiVersioning(options =>
     {
         options.DefaultApiVersion = new ApiVersion(1, 0);
@@ -79,7 +83,7 @@ app.UseHttpsRedirection();
 app.UseWhen(context => context.Request.Path.StartsWithSegments("/api"),
     appBuilder => appBuilder.UseMiddleware<ApiKeyAuthMiddleware>());
 
-// Set up the database and seed admin user if necessary
+// Set up the database
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -91,8 +95,6 @@ using (var scope = app.Services.CreateScope())
     {
         Directory.CreateDirectory(dbDirectory);
     }
-
-    await db.Database.MigrateAsync();
 }
 
 app.MapMiscEndpoints();
