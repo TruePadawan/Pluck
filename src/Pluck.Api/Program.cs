@@ -78,7 +78,10 @@ if (app.Environment.IsDevelopment())
     });
 }
 
-app.UseHttpsRedirection();
+if (!app.Environment.IsEnvironment("Testing"))
+{
+    app.UseHttpsRedirection();
+}
 // custom auth middleware
 app.UseWhen(context => context.Request.Path.StartsWithSegments("/api"),
     appBuilder => appBuilder.UseMiddleware<ApiKeyAuthMiddleware>());
