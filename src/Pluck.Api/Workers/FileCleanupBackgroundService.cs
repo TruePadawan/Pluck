@@ -33,7 +33,7 @@ public class FileCleanupBackgroundService(
     /// Cleans up files that have expired
     /// </summary>
     /// <param name="stoppingToken"></param>
-    private async Task CleanUpFiles(CancellationToken stoppingToken)
+    public async Task CleanUpFiles(CancellationToken stoppingToken)
     {
         using var scope = scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();

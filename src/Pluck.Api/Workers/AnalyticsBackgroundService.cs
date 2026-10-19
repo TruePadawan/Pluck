@@ -48,7 +48,7 @@ public class AnalyticsBackgroundService : BackgroundService
         }
     }
 
-    private async Task ProcessAnalyticsMessageAsync(DownloadAnalyticsMessage message, CancellationToken stoppingToken)
+    public async Task ProcessAnalyticsMessageAsync(DownloadAnalyticsMessage message, CancellationToken stoppingToken)
     {
         using var scope = _scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
