@@ -1,6 +1,7 @@
 # Pluck
 
 Pluck is a lightweight, self-hosted ephemeral file-sharing application built with a Zero-Knowledge security model.  
+
 It consists of a self-hosted ASP.NET Core Web API and a feature-rich C# CLI client featuring client-side AES-256 encryption,
 Spectre.Console UI formatting, terminal QR codes, download analytics, an interactive Admin TUI dashboard,
 file upload/download progress tracking, and clipboard integration.
@@ -37,7 +38,7 @@ file upload/download progress tracking, and clipboard integration.
 
 ## How Pluck Works
 
-Pluck is designed for temporary file sharing with zero maintenance and a **Zero-Knowledge security architecture**:
+Pluck is designed for temporary file sharing with little maintenance and a **Zero-Knowledge security architecture**:
 
 1. **Client-Side Encryption:** Every file or folder uploaded via `pluck share` is encrypted client-side using AES-256 before leaving your machine. If no custom password (`--pwd`) is provided, a 16-character encryption key is generated automatically and appended to the download URL fragment (`#<key>`). The server never receives or stores your plaintext files or encryption keys.
 2. **Upload & Lifecycle Configuration:** Set an optional Time-To-Live (`--ttl` in hours, default 24 hours), maximum download count (`--downloads`), custom vanity token (`--token`), or a custom encryption password (`--pwd`).
