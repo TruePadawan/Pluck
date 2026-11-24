@@ -5,6 +5,7 @@ namespace Pluck.Shared.Params;
 /// </summary>
 public class FileParams
 {
+    public string? WebhookUrl { get; init; }
     public required string Token { get; init; }
     public required Guid OwnerId { get; init; }
     public required string DiskFileName { get; init; }

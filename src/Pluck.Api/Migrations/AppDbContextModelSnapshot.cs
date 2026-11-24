@@ -17,6 +17,47 @@ namespace Pluck.Api.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.10");
 
+            modelBuilder.Entity("Pluck.Shared.Models.WebhookDelivery", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Destination")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("FileId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("NextAttemptAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("OccurredAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Payload")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Status", "NextAttemptAt");
+
+                    b.ToTable("WebhookDeliveries");
+                });
+
             modelBuilder.Entity("Pluck.Shared.Models.Events.FileDownloadEvents", b =>
                 {
                     b.Property<Guid>("Id")
@@ -119,6 +160,9 @@ namespace Pluck.Api.Migrations
                     b.Property<string>("Token")
                         .IsRequired()
                         .HasMaxLength(10)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("WebhookUrl")
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");

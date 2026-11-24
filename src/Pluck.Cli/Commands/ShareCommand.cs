@@ -18,6 +18,10 @@ namespace Pluck.Cli.Commands;
 
 public class ShareCommandSettings : CommandSettings
 {
+    [CommandOption("--webhook <URL>")]
+    [Description("Send download and expiry notifications to an approved HTTPS URL")]
+    public string? Webhook { get; init; }
+
     [CommandOption("--ttl")]
     [Description("How long the file/folder should exist for in hours")]
     public double Ttl { get; set; } = 24;
@@ -51,7 +55,7 @@ public class ShareCommand : AsyncCommand<ShareCommandSettings>
         {
             var info = await SetupUploadAsync(settings, cancellationToken);
             tempZipPath = info.TempZipPath;
-            var successResponse = await UploadFileAsync(info, cancellationToken);
+            var successResponse = await UploadFileAsync(info, settings.Webhook, cancellationToken);
             OutputUploadResult(successResponse, info.Password, settings.Password);
             return 0;
         }
@@ -153,9 +157,9 @@ public class ShareCommand : AsyncCommand<ShareCommandSettings>
     }
 
     /// <summary>
-    /// Uploads the file with encryption and progress indication.
+    /// Streams the encrypted upload, reports progress, and attaches the optional webhook destination.
     /// </summary>
-    private static async Task<FileResponseDto> UploadFileAsync(UploadInfo info, CancellationToken cancellationToken)
+    private static async Task<FileResponseDto> UploadFileAsync(UploadInfo info, string? webhook, CancellationToken cancellationToken)
     {
         FileResponseDto? successResponse = null;
 
@@ -183,7 +187,9 @@ public class ShareCommand : AsyncCommand<ShareCommandSettings>
                 using var form = new MultipartFormDataContent();
                 form.Add(fileContent, "file", info.FileName);
 
-                var response = await PluckHttpClient.PostAsync("/api/upload", form, cancellationToken);
+                using var request = new HttpRequestMessage(HttpMethod.Post, "/api/upload") { Content = form };
+                if (webhook != null) request.Headers.Add("X-Pluck-Webhook", webhook);
+                using var response = await PluckHttpClient.SendAsync(request, cancellationToken);
                 if (!response.IsSuccessStatusCode)
                 {
                     if (response.StatusCode == HttpStatusCode.Unauthorized)

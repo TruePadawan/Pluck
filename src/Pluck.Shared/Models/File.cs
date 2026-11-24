@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using Pluck.Shared.Models.Events;
 using Pluck.Shared.Params;
 
@@ -5,6 +6,7 @@ namespace Pluck.Shared.Models;
 
 public sealed class File : EntityBase
 {
+    [JsonIgnore] public string? WebhookUrl { get; private set; }
     public string Token { get; private set; }
     public Guid OwnerId { get; private set; }
     public User Owner { get; private set; }
@@ -47,6 +49,7 @@ public sealed class File : EntityBase
 
     private File(FileParams p)
     {
+        WebhookUrl = p.WebhookUrl;
         Token = p.Token;
         OwnerId = p.OwnerId;
         DiskFileName = p.DiskFileName;

@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Pluck.Api.Persistence;
 using Pluck.Shared.Dtos.Files;
 using Pluck.Shared.Lib;
+using Pluck.Shared.Models;
 using Pluck.Shared.Params;
 using File = Pluck.Shared.Models.File;
 
@@ -9,12 +10,14 @@ namespace Pluck.Api.Repositories;
 
 public class FileRepository(AppDbContext db)
 {
+    /// <summary>Persists a new share with its expiration, download allowance, and optional webhook destination.</summary>
     public async Task<File> CreateFile(CreateFileDto fileDto)
     {
         var token = SharedUtilities.GenerateId(6);
         var fileExpiryDate = DateTime.UtcNow.AddHours(fileDto.Ttl);
         var fileEntry = File.Create(new FileParams
         {
+            WebhookUrl = fileDto.WebhookUrl,
             Token = fileDto.Token ?? token,
             OwnerId = fileDto.OwnerId,
             DiskFileName = fileDto.DiskFileName,
@@ -43,10 +46,29 @@ public class FileRepository(AppDbContext db)
                                                         && f.ExpiresAt > DateTime.UtcNow);
     }
 
+    /// <summary>Records a counted download, atomically consuming any remaining allowance and queuing its configured notification.</summary>
     public async Task DecrementDownloadsLeft(File file)
     {
-        file.DecrementDownloadsLeft();
-        await db.SaveChangesAsync();
+        if (file.DownloadsLeft is null && file.WebhookUrl is null) return;
+        await using var transaction = await db.Database.BeginTransactionAsync();
+        var active = db.Files.Where(f => f.Id == file.Id);
+        if (file.DownloadsLeft.HasValue)
+        {
+            var changed = await active.Where(f => f.DownloadsLeft > 0).ExecuteUpdateAsync(s => s
+                .SetProperty(f => f.DownloadsLeft, f => f.DownloadsLeft - 1)
+                .SetProperty(f => f.LastModifiedAt, DateTime.UtcNow));
+            if (changed == 0) return;
+            await db.Entry(file).ReloadAsync();
+        }
+        else if (!await active.AnyAsync()) return;
+
+        if (file.WebhookUrl != null)
+        {
+            db.WebhookDeliveries.Add(WebhookDelivery.Downloaded(file));
+            await db.SaveChangesAsync();
+        }
+
+        await transaction.CommitAsync();
     }
 
     /// <summary>

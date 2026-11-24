@@ -1,5 +1,6 @@
 namespace Pluck.Shared.Dtos.Files;
 
+/// <summary>Describes an uploaded file, its sharing limits, and its optional notification destination.</summary>
 public record CreateFileDto(
     Guid OwnerId,
     string? Token,
@@ -12,5 +13,6 @@ public record CreateFileDto(
     bool IsDirectory,
     string AuthHash,
     string Salt,
-    string IV
+    string IV,
+    string? WebhookUrl = null
 );
