@@ -49,6 +49,20 @@ public class FileRepositoryTests : IDisposable
         _repo = new FileRepository(_db);
     }
 
+    /// <summary>Verifies that two completions using stale file state can claim the final download only once.</summary>
+    [Fact]
+    public async Task StaleCompletionsCannotConsumeTheLastDownloadTwice()
+    {
+        var dto = new CreateFileDto(_user.Id, null, "file.dat", "example.txt", "text/plain", 5, 24, 1,
+            false, "hash", "salt", "iv", "https://receiver.example/topic");
+        var file = await _repo.CreateFile(dto);
+        var stale = await _db.Files.AsNoTracking().SingleAsync(f => f.Id == file.Id);
+        await _repo.DecrementDownloadsLeft(file);
+        await _repo.DecrementDownloadsLeft(stale);
+        (await _db.WebhookDeliveries.CountAsync()).Should().Be(1);
+        (await _db.Files.AsNoTracking().SingleAsync(f => f.Id == file.Id)).DownloadsLeft.Should().Be(0);
+    }
+
     [Fact]
     public async Task CreateFile_GeneratesToken()
     {
