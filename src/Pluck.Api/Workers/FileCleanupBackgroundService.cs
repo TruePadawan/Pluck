@@ -2,6 +2,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Pluck.Api.Persistence;
 using Pluck.Api.Security;
+using Pluck.Shared.Models;
+using File = System.IO.File;
 
 namespace Pluck.Api.Workers;
 
@@ -30,7 +32,7 @@ public class FileCleanupBackgroundService(
     }
 
     /// <summary>
-    /// Cleans up files that have expired
+    /// Removes expired and exhausted shares and queues expiry notifications for time-expired shares with remaining downloads.
     /// </summary>
     /// <param name="stoppingToken"></param>
     public async Task CleanUpFiles(CancellationToken stoppingToken)
@@ -40,6 +42,7 @@ public class FileCleanupBackgroundService(
         var apiOptions = scope.ServiceProvider.GetRequiredService<IOptions<PluckApiOptions>>();
         var config = apiOptions.Value;
 
+        await using var transaction = await db.Database.BeginTransactionAsync(stoppingToken);
         var expiredFiles = await db.Files
             .Where(file => file.DownloadsLeft <= 0 || file.ExpiresAt < DateTime.UtcNow)
             .ToListAsync(stoppingToken);
@@ -48,9 +51,12 @@ public class FileCleanupBackgroundService(
         {
             var filePath = Path.Combine(config.UploadDirectory, file.DiskFileName);
             File.Delete(filePath);
+            if (file.WebhookUrl != null && file.DownloadsLeft is not <= 0)
+                db.WebhookDeliveries.Add(WebhookDelivery.Expired(file));
         });
         // Remove the files from the database
         db.Files.RemoveRange(expiredFiles);
         await db.SaveChangesAsync(stoppingToken);
+        await transaction.CommitAsync(stoppingToken);
     }
 }

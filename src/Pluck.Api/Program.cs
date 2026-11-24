@@ -16,6 +16,11 @@ builder.Services.AddScoped<UserRepository>();
 builder.Services.AddScoped<FileRepository>();
 builder.Services.AddSingleton<IAnalyticsQueue, AnalyticsQueue>();
 builder.Services.AddSingleton<IGeoLocationService, GeoLocationService>();
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddHttpClient("webhooks", c => c.Timeout = TimeSpan.FromSeconds(10))
+    .RemoveAllLoggers()
+    .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { AllowAutoRedirect = false, UseCookies = false });
+builder.Services.AddHostedService<WebhookWorker>();
 builder.Services.AddHostedService<FileCleanupBackgroundService>();
 builder.Services.AddHostedService<AnalyticsBackgroundService>();
 builder.WebHost.ConfigureKestrel(options =>
@@ -82,6 +87,7 @@ if (!app.Environment.IsEnvironment("Testing"))
 {
     app.UseHttpsRedirection();
 }
+
 // custom auth middleware
 app.UseWhen(context => context.Request.Path.StartsWithSegments("/api"),
     appBuilder => appBuilder.UseMiddleware<ApiKeyAuthMiddleware>());

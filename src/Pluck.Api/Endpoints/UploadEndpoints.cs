@@ -31,7 +31,7 @@ public static class UploadEndpoints
         }
 
         /// <summary>
-        /// Uploads a file to the server and returns a download link
+        /// Registers the upload endpoint, which validates the optional webhook before saving the file and returning a download link.
         /// </summary>
         private void MapUploadFile()
         {
@@ -50,7 +50,8 @@ public static class UploadEndpoints
                         int? fileMaxDownloads = null,
                         [FromHeader(Name = "X-PLUCK-IS-DIRECTORY")]
                         bool isDirectory = false,
-                        [FromHeader(Name = "X-PLUCK-TOKEN")] string? fileToken = null) =>
+                        [FromHeader(Name = "X-PLUCK-TOKEN")] string? fileToken = null,
+                        [FromHeader(Name = "X-Pluck-Webhook")] string? webhook = null) =>
                     {
                         if (context.Items["User"] is not User user)
                         {
@@ -68,6 +69,9 @@ public static class UploadEndpoints
                             return TypedResults.BadRequest(
                                 new ErrorResponseDto("Max downloads if set must be greater than 0"));
                         }
+
+                        if (webhook != null && !apiOptions.Value.AllowsWebhook(webhook))
+                            return TypedResults.BadRequest(new ErrorResponseDto("Webhook requires an approved HTTPS destination"));
 
                         var request = context.Request;
                         // Verify the request is a multipart request
@@ -129,7 +133,7 @@ public static class UploadEndpoints
                                     originalFileName,
                                     fileContentType, fileSize,
                                     fileTtlInHours, fileMaxDownloads, isDirectory, authHash, salt,
-                                    initializationVector);
+                                    initializationVector, webhook);
                                 // Save the file entry in the database
                                 var file = await fileRepository.CreateFile(fileDto);
 
