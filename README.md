@@ -106,7 +106,7 @@ pluck config --server <SERVER_URL> --key <API_KEY>
 Encrypts and uploads a file or folder to the configured Pluck server with real-time transfer speed and progress tracking. Automatically copies the generated download URL to the clipboard and renders a scannable QR code in your terminal.
 
 ```bash
-pluck share <filepath> [--ttl <hours>] [--downloads <count>] [--pwd <password>] [--token <token>]
+pluck share <filepath> [--ttl <hours>] [--downloads <count>] [--pwd <password>] [--token <token>] [--webhook <url>]
 ```
 
 **Arguments:**
@@ -124,6 +124,21 @@ pluck share <filepath> [--ttl <hours>] [--downloads <count>] [--pwd <password>] 
 > Because Pluck uses a Zero-Knowledge model, the server does not store encryption passwords or keys. If you lose the download URL fragment (`#<key>`) or forget your custom password, the file is permanently unrecoverable.
 
 ---
+
+#### Webhook notifications
+
+Allow a trusted HTTPS receiver on the server by setting `PluckApi__WebhookHosts__0=ntfy.sh` (use successive indices for additional exact hostnames). The default allowlist is empty. When upgrading an existing installation, apply the EF Core migrations to the configured SQLite database before starting the API, for example with `dotnet ef database update --project src/Pluck.Api` using the deployment's connection string and admin configuration.
+
+```sh
+pluck share data.zip --webhook https://ntfy.sh/my_alerts
+```
+
+The API accepts the optional upload header `X-Pluck-Webhook`. Use HTTPS on port 443 without embedded credentials or a fragment. Receivers get a plain-text POST identifying the share by its file ID, with `X-Pluck-Event`, `X-Pluck-Event-Id`, and `X-Pluck-Occurred-At` (UTC) headers.
+
+- `file.downloaded` means a server read reached the end of the file, including a resumed transfer or range ending at the final byte. It does not confirm receipt or decryption.
+- `file.expired` carries the scheduled expiry time. The cleanup worker queues it on its next sweep (normally within ten minutes). Manual deletion and exhausted download allowances do not generate expiry notices.
+
+Delivery runs in the background. Pluck retries network errors, timeouts, HTTP 408, 429, and server errors for up to five attempts, normally waiting 30 seconds, two minutes, ten minutes, and one hour. A receiver can extend a delay with `Retry-After`, up to one hour. Redirects are refused. Pending deliveries survive restarts. Receivers can deduplicate by event ID if Pluck retries after a POST was accepted. Completed and failed deliveries are pruned after seven days during hourly maintenance.
 
 ### `pluck get`
 
