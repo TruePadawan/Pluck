@@ -18,6 +18,7 @@ public class AppDbContext : DbContext
         _options = options;
     }
 
+    public DbSet<WebhookDelivery> WebhookDeliveries => Set<WebhookDelivery>();
     public DbSet<File> Files => Set<File>();
     public DbSet<User> Users => Set<User>();
     public DbSet<FileDownloadEvents> FileDownloadEvents => Set<FileDownloadEvents>();
